@@ -5,18 +5,33 @@
 %       chapter: (i) soft-robot modelling, (ii) learning-based IK, (iii)
 %       simulation and sim-to-real transfer.
 
-\section{Pneumatic Soft Manipulators}
+\section{Pneumatic soft manipulators}
+\label{sec:bg_pneumatic}
 
-\subsection{Design and Actuation Principles}
-% TODO: silicone chambers, fibre reinforcement, pressure-driven bending.
+The two datasets that underpin this thesis were both recorded on pneumatic soft manipulators. This section describes the design principles of that class of robot (Section~\ref{sec:bg_pneumatic_design}), the I-Support platform from which Dataset 1 was recorded (Section~\ref{sec:bg_pneumatic_isupport}), and the smaller family of three-chamber and three-valve platforms that is relevant to Dataset 2 and to the Ma et al.\ \cite{ma2022bp} benchmark (Section~\ref{sec:bg_pneumatic_others}).
 
-\subsection{The I-Support Platform}
-% TODO: describe the I-Support manipulator (two modules, six chambers, nine
-%       markers) used as the basis for Dataset 1. Cite Manti et al. (2016).
+\subsection{Design and actuation principles}
+\label{sec:bg_pneumatic_design}
 
-\subsection{Other Pneumatic Platforms Relevant to this Work}
-% TODO: platforms matching Dataset 2 style (3-chamber / 3-valve single-segment
-%       arms) and the Ma et al. (2022) 3-chamber arm we aim to surpass.
+A pneumatic soft manipulator is a continuum robot whose structure deforms under fluid pressure rather than by rotating rigid links at discrete joints. The canonical design is a silicone cylinder with several sealed chambers distributed around its neutral axis; pressurising a subset of the chambers lengthens them asymmetrically relative to the others and bends the cylinder away from the active chambers. When all chambers are pressurised equally the cylinder elongates uniformly, and when only one is pressurised the cylinder bends in the plane defined by that chamber and the axis. The most common arrangement uses three chambers placed at $120^{\circ}$ around the axis, which allows bending in any direction in the plane perpendicular to the axis using only three independent pressures. Commercial and research platforms add fibre reinforcement around the chambers---typically a braided polyester or polyethylene terephthalate sheath---to constrain radial expansion and to channel pressure into axial bending or elongation.
+
+The appeal of pneumatic actuation for soft manipulators is the combination of intrinsic mechanical compliance, safety for unstructured contact with humans, and simplicity at the drive end: pressurised air is a cheap and widely available power source, valves are small, and the actuator itself contains no internal friction surfaces. The cost is that the relationship between the applied pressure and the resulting deformation is strongly nonlinear and history-dependent. The silicone matrix exhibits viscoelastic creep on the order of seconds, so the deformation reached under a given pressure depends on the history of that pressure and not only on its current value. Manufacturing variability is also substantial: lateral displacements of $25$--$30$\,mm have been reported for otherwise identical I-Support chambers as a result of manual assembly tolerances \cite{manti2016soft}. These properties together mean that rigid-robot inverse-kinematics methods do not transfer directly to pneumatic soft arms, and they are the main reason the soft-robotics community has pursued learning-based control strategies \cite{kim2021mlsoft}.
+
+\subsection{The I-Support platform}
+\label{sec:bg_pneumatic_isupport}
+
+The I-Support manipulator was developed by Manti et al.\ \cite{manti2016soft} at the BioRobotics Institute of Scuola Superiore Sant'Anna, originally as an assistive robot for the showering of elderly users. A single I-Support module is a silicone cylinder of $205$\,mm rest length and $60$\,mm diameter, with three McKibben-type fluidic chambers arranged at $120^{\circ}$ around the central axis and offset approximately $12$\,mm from it. The module is reinforced with a braided polyethylene terephthalate sheath that is thermally set to a bellows shape, which concentrates pressure-induced deformation into axial bending and elongation rather than radial ballooning. Each chamber can be safely pressurised up to $1.2$\,bar, at which a single-chamber actuation bends the module tip by approximately $118^{\circ}$ from its rest pose and a symmetric three-chamber actuation elongates the module by approximately $85\%$ of its rest length. These two behavioural anchors are the reference values used in the PyElastica calibration of Section~\ref{sec:sim_setup}.
+
+Dataset 1 of this thesis was recorded on the two-module extension of the I-Support platform introduced by Bianchi et al.\ \cite{bianchi2023learning}. The two modules are stacked in series, rotated by $60^{\circ}$ relative to each other so that the six chambers together cover the full actuation circle, and mounted vertically with the end-effector pointing downwards so that gravity acts along the straight-pose axis rather than perpendicular to it. The assembled arm has a rest length of approximately $410$\,mm. These design choices together make the two-module I-Support a convenient reference platform for data-driven inverse-kinematics work on pneumatic soft robots: the actuation is pressure-only with no tendons or cables, the two-module geometry provides the six-chamber over-parameterisation that motivates multi-valued inverse methods (Section~\ref{sec:disc_interpretation}), and marker-based optical tracking of the base, mid-section, and tip provides a spatial sample of the internal configuration along the arm.
+
+\subsection{Other pneumatic platforms relevant to this work}
+\label{sec:bg_pneumatic_others}
+
+Two further pneumatic platforms are relevant to this thesis. The first is the three-chamber single-segment arm of Ma et al.\ \cite{ma2022bp}, a purpose-built test rig developed in 2022 to evaluate a back-propagation neural network for inverse-kinematics prediction. Ma et al.'s arm uses three silicone chambers at $120^{\circ}$ around the axis without a second stage, with documented actuation units in bar and a documented straight-pose origin. Its single-segment three-chamber topology matches the geometric assumptions of the piecewise-constant-curvature model that Section~\ref{sec:bg_ik_analytical} reviews below, and the sub-$5\%$ pressure-space MAPE that Ma et al.\ reported on a $216$-sample dataset is a natural benchmark for data-driven pneumatic inverse kinematics; it is used as a scale marker for the Dataset 2 comparisons of Chapter~\ref{chap:results}.
+
+The second is the undocumented three-valve soft arm from which Dataset 2 was recorded. The dataset was supplied by the project supervisor and is not otherwise in the public literature. From the dataset alone it is known that actuation is driven by three valves on an integer-valued command range $[0, 2500]$, that tip positions were recorded in inches and converted to millimetres, and that the observed workspace is a shallow disc of approximately $100$\,mm lateral extent and $65$\,mm axial extent (Section~\ref{sec:ds2}). The absence of documented geometry, material, and actuation calibration places Dataset 2 at the opposite extreme from Ma et al.'s platform along the documentation axis, and several of the experimental limitations discussed in Chapter~\ref{chap:discussion} trace back directly to this asymmetry.
+
+Beyond these two specific platforms, the last decade has produced a wide variety of pneumatic soft-manipulator designs, including single-chamber bending actuators, modular multi-chamber arms, inflatable robotic trunks, and fibre-reinforced continuum manipulators; Kim et al.\ \cite{kim2021mlsoft} and Alessi et al.\ \cite{alessi2024rodreview} provide recent surveys. The present thesis draws on only two datasets, chosen because they expose complementary design properties---a two-module over-actuated pneumatic recording in Dataset 1 and an under-documented three-valve recording in Dataset 2---that together cover the actuation-redundancy regimes that the method-selection discussion of Chapter~\ref{chap:discussion} depends on.
 
 \section{Kinematic Modelling of Soft Robots}
 
