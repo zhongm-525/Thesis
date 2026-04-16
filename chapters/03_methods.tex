@@ -491,14 +491,45 @@ which approximates the integral of squared jerk and penalises methods whose pred
 
 \section{Training Setup and Evaluation}
 
-\subsection{Hardware, Software and Reproducibility}
-% TODO: GPU and PyTorch version to be recorded from the working environment.
+\subsection{Hardware, software, and reproducibility}
+\label{sec:reproducibility}
 
-A fixed random seed of 42 governed all stochastic operations, including scaler fitting order, mini-batch shuffling within a single Dataset 1 seed, and weight initialisation. Fitted input and output scalers were stored inside the model checkpoint metadata, so inference could be reproduced without recomputing dataset statistics.
+All training and evaluation reported in this thesis were carried out on a single workstation running Linux. The hardware was an Intel Core i7-13650HX CPU with $16$\,GB of RAM and an NVIDIA GeForce RTX 4060 Laptop GPU. The software stack comprised Python $3.11$, PyTorch $2.11$ with CUDA $12.6$, NumPy, pandas, scikit-learn, SciPy, and PyElastica \cite{gazzola2018pyelastica}. Scikit-learn provided the z-score scalers and the nonparametric paired-test utilities; SciPy provided the SLSQP solver used by the two-segment PCC inverse kinematics (Section~\ref{sec:pcc_multi}); and PyElastica provided the Cosserat rod integrator used by the I-Support simulator (Section~\ref{sec:sim_setup}).
 
-\subsection{Hyperparameter Selection}
-% TODO: validation-set driven search; never touch the test set.
+A fixed random seed of $42$ governed all stochastic operations, including scaler fitting order, mini-batch shuffling within a single Dataset 1 seed, and weight initialisation. The PyTorch cuDNN backend was set to deterministic mode with auto-benchmarking disabled, so that GPU kernel selection did not introduce run-to-run variation. Fitted input and output scalers were stored inside the model checkpoint metadata, so inference could be reproduced without recomputing dataset statistics. Each checkpoint also recorded the configuration file, the git commit hash, and the timestamp of the training run, so any reported number can be traced back to the exact code state that produced it.
+
+\subsection{Hyperparameter selection}
+\label{sec:hyperparam}
+
+Hyperparameter selection followed a single rule: the test split of each dataset was held out until all modelling choices had been fixed. The validation-split loss was the only criterion used for model selection within a training run (through early stopping) and for any cross-configuration selection where one was performed.
+
+For the feed-forward networks of Section~\ref{sec:mlp}, only the hidden-layer depth and widths were selected, once per dataset, on short pilot runs driven by the validation loss. Learning rate, batch size, and optimiser were fixed at values commonly reported as robust defaults for small regression networks and were not swept. For the recurrent networks of Section~\ref{sec:lstm}, the window length $K$ was swept over $\{5, 10, 20\}$ and the setting that minimised the validation loss on each dataset was retained for the headline comparison; the hidden width and depth were fixed at $128$ units and two layers respectively. For the Jacobian-learned inverse kinematics of Section~\ref{sec:jacobian}, the damping coefficient $\lambda$, the step size $\alpha$, and the convergence tolerance $\tau$ were set at reference values drawn from Fang et al.\ \cite{fang2022jacobian} with no further tuning. For the PCC baselines, the reference length $L_0$ of the single-segment model (Section~\ref{sec:pcc_single}) was scanned on a uniform grid over the training tip-norm range, and the SLSQP bounds of the two-segment model (Section~\ref{sec:pcc_multi}) were fixed at physically plausible values from the I-Support specification. For the sim-to-real experiment (Section~\ref{sec:sim_transfer}), the pre-training and fine-tuning learning rates were chosen a priori at $10^{-3}$ and $10^{-4}$ respectively, following the common heuristic of reducing the rate by an order of magnitude for fine-tuning.
+
+No hyperparameter was ever chosen on the basis of the test split. The test metrics reported in Chapter~\ref{chap:results} are therefore held-out generalisation estimates, not selection criteria.
 
 \subsection{Metrics}
-% TODO: MAE / RMSE / MAPE of tip position, trajectory error, inference
-%       latency.
+\label{sec:metrics}
+
+Three families of metrics were used across the experiments: pressure-space errors (for methods whose direct output is an actuation command), position-space errors (for closed-loop evaluation through a forward model), and auxiliary metrics for smoothness and runtime. All pressure-space metrics are reported in the native actuation unit of each dataset: raw units in $[0, 100]$ for Dataset 1, where a value of approximately $100$ corresponds to $1$\,bar, and raw units in $[0, 2500]$ for Dataset 2. Position-space metrics are reported in millimetres throughout.
+
+\paragraph{Pressure-space metrics.}
+Let $\mathbf{y}_k$ denote the ground-truth actuation command of the $k$-th test sample and $\hat{\mathbf{y}}_k$ the model's prediction, with $k = 1, \ldots, N$ and per-command dimensions indexed by $j = 1, \ldots, n_p$. Let $V_{\max}$ denote the maximum command value of the dataset ($100$ for Dataset 1, $2500$ for Dataset 2), and $\bar{y}$ the scalar mean of the ground-truth commands over all sample--dimension pairs. The four pressure-space metrics were
+\begin{align}
+  \mathrm{MAE}  &= \frac{1}{N n_p} \sum_{k, j} \bigl| y_{k,j} - \hat{y}_{k,j} \bigr|, \label{eq:mae} \\
+  \mathrm{MAPE} &= \frac{100}{|\mathcal{K}|} \sum_{(k, j) \in \mathcal{K}} \frac{\bigl| y_{k,j} - \hat{y}_{k,j} \bigr|}{\bigl| y_{k,j} \bigr|}, \label{eq:mape} \\
+  \mathrm{NMAE} &= \frac{\mathrm{MAE}}{V_{\max}}, \label{eq:nmae} \\
+  R^{2}         &= 1 - \frac{\sum_{k, j} \bigl( y_{k,j} - \hat{y}_{k,j} \bigr)^{2}}{\sum_{k, j} \bigl( y_{k,j} - \bar{y} \bigr)^{2}}, \label{eq:r2}
+\end{align}
+where $\mathcal{K} = \{(k, j) : |y_{k,j}| > 0.01 \, V_{\max}\}$ restricts the MAPE sum to samples whose ground-truth command exceeds $1\%$ of the command-range maximum, avoiding divide-by-near-zero inflation of the statistic. MAPE is reported as a percentage and NMAE as a dimensionless fraction of the command range.
+
+\paragraph{Position-space metrics.}
+For every closed-loop evaluation, the per-sample Euclidean distance between the target tip position and the forward-evaluated achieved tip position was recorded in millimetres. The resulting distribution was summarised by its mean, its maximum, its $95$th percentile, and its root-mean-square. These statistics are reported per method for the per-sample test-set evaluation of Sections~\ref{sec:pcc_single}--\ref{sec:sim_transfer}, and per method and trajectory in the trajectory-tracking evaluation of Section~\ref{sec:traj}.
+
+\paragraph{Noise floor for Dataset 1.}
+The three repetitions of seed~0 in Dataset 1 (Section~\ref{sec:ds1}) provide a physical noise floor against which any inverse-kinematics error is to be interpreted: tip positions recorded under nearly identical actuation commands differ between the repeats owing to optical-marker noise, mounting variability, and small deviations of the commanded pressures themselves. The standard deviation of the per-frame tip position across the three seed-0 trials (with frames paired by nearest neighbour in the six-dimensional pressure-command space, as described in Section~\ref{sec:eda}) is used as an empirical lower bound for the Dataset 1 closed-loop error. Any model error below this bound is to be read as overfitting to noise rather than as a measurement of inverse-kinematics accuracy.
+
+\paragraph{Paired comparison protocol.}
+Where two methods are compared on the same sample set---for example, the tip-only and tip-plus-mid networks of Section~\ref{sec:mlp_tipmid}---three paired statistics were reported. The first was the fraction of test frames on which one method produced a lower per-sample error than the other. The second was the mean, together with a bootstrap $95\%$ confidence interval, of the per-frame error difference between the two methods. The third was the two-sided Wilcoxon signed-rank test on the paired per-sample errors, which does not assume a normal distribution of the differences. The bootstrap used $10{,}000$ resamples with replacement of the per-frame error differences.
+
+\paragraph{Smoothness and runtime metrics.}
+The trajectory-tracking evaluation of Section~\ref{sec:traj} additionally reports the sum of squared discrete third differences of the pressure command (Eq.~\ref{eq:traj_jerk}) as a proxy for command-sequence jerk, and the wall-clock time required to predict a single command on the CPU as a runtime metric. Runtime is reported in milliseconds.
