@@ -76,8 +76,75 @@ Pearson correlations between each valve command and each tip coordinate are show
 
 \section{PCC Analytical Baseline (Exp 1)}
 
-\subsection{Single-Segment PCC on Dataset 2 (Exp 1A)}
-% TODO: error distribution, failure modes.
+\subsection{Single-segment PCC on Dataset 2}
+\label{sec:res_pcc_single}
+
+The single-segment PCC baseline of Section~\ref{sec:pcc_single} was calibrated on the $12{,}650$-frame training split of Dataset 2 and evaluated on the $2{,}712$-frame test split. This subsection reports the calibration outcome, the test-set metrics, and the diagnostic analysis that attributes the remaining error to structural limitations of the single-segment constant-length PCC model rather than to the linear length-to-actuation fit.
+
+\paragraph{Calibration.}
+The reference-length scan described in Section~\ref{sec:pcc_single} selected $L_0 = 67.24$\,mm, corresponding to $1.05 \times \max_k \| \mathbf{p}_k \|$ on the training tip positions. The linear length-to-actuation fit gave per-chamber slopes $\mathbf{a} \approx (31.7,\ 23.2,\ 18.9)$ in valve-command units per millimetre of chamber-length change, and intercepts $\mathbf{b} \approx (1927,\ 1703,\ 1941)$ in valve-command units. The three slopes differ by up to a factor of $1.7$, consistent with chamber-specific gains in the physical actuation system that the per-chamber linear fit absorbs independently.
+
+\paragraph{Headline metrics.}
+Table~\ref{tab:res_pcc_single} summarises the test-set performance. On the $1{,}385$ test targets that lie inside the single-segment PCC workspace ($51\%$ of the full test set), the predicted actuation produces a mean tip residual of $22.67$\,mm when passed back through the forward map---an order of magnitude above the physical marker noise observed on Dataset 1 (Section~\ref{sec:eda_ds1}) and more than twice the $10$\,mm scale one would associate with the $5\%$ MAPE target reported by Ma et al.\ \cite{ma2022bp} on a similar three-chamber arm. Over the full test set, $48.9\%$ of targets fail the workspace condition and receive the penalised value equal to the workspace diameter (${\sim}155$\,mm), giving a penalised mean of $87.64$\,mm. The distribution of per-target forward residuals on the reachable subset is shown in Fig~\ref{fig:res_pcc_error}: the distribution is unimodal but broad, extending well past the mean into a long tail.
+
+\begin{table}[ht]
+\centering
+\caption[Test metrics of the single-segment PCC on Dataset 2.]{Test metrics of the single-segment PCC baseline on Dataset 2, split by reachability. MAPE is reported with the $1\%$-of-$V_{\max}$ threshold of Eq.~\eqref{eq:mape} and is not well defined on the full test set, which includes unreachable targets that inflate the denominator. The penalised mean is only defined on the full test set (Section~\ref{sec:pcc_single}). Inference time is the mean per-target wall-clock time on the CPU.}
+\label{tab:res_pcc_single}
+\begin{tabularx}{\linewidth}{@{}l X X@{}}
+\toprule
+Metric                                     & Reachable subset   & Full test set     \\
+\midrule
+Evaluated targets                          & $1{,}385$          & $2{,}712$         \\
+Reachable fraction                         & $100\%$            & $51.07\%$         \\
+Pressure MAE (command units)               & $285.2$            & $794.8$           \\
+Pressure MAPE                              & $62.0\%$           & ---               \\
+Pressure NMAE                              & $11.4\%$           & $31.8\%$          \\
+Forward residual mean (mm)                 & $22.67$            & ---               \\
+Forward residual $95$th percentile (mm)    & $48.70$            & ---               \\
+Penalised mean (mm)                        & ---                & $87.64$           \\
+Inference time per target (ms)             & $0.01$             & $0.01$            \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.7\linewidth]{fig/pcc_error_distribution.pdf}
+\caption[Forward-residual distribution of the single-segment PCC on Dataset 2.]{Distribution of the per-target forward residual of the single-segment PCC baseline on the $1{,}385$ reachable targets of the Dataset 2 test set. The mean ($22.67$\,mm) and $95$th percentile ($48.70$\,mm) are marked. No target reaches the $\sim$$2.3$\,mm marker-noise floor established for Dataset 1 in Section~\ref{sec:eda_ds1}, so the distribution is dominated by model error rather than by measurement noise.}
+\label{fig:res_pcc_error}
+\end{figure}
+
+\paragraph{Frame-mismatch diagnostic.}
+A first hypothesis for the large residual and the low reachability was that Dataset 2's recorded origin lies near the robot's straight-pose tip rather than at its base, which would place reachable PCC targets in a different coordinate frame from the one assumed by Eqs.~\eqref{eq:pcc_phi}--\eqref{eq:pcc_L}. The nominally-straight rows of the training split, identified as those for which the cross-chamber standard deviation of the valve command was below $50$, had a tip centroid of $(10.6, -5.8, -4.1)$\,mm rather than the expected $(0, 0, L_0)$, which confirmed the frame offset. Three frame-transform variants were then evaluated on the validation split (Table~\ref{tab:res_pcc_frame}): the raw frame, a pure translation that maps the straight-pose tip to $(0, 0, L_0)$, and a translation combined with a $z$-axis flip. The flip-and-translation variant raised the reachable fraction from $51\%$ to $99.6\%$, but it reduced the mean forward residual by only $1.7$\,mm. Frame misalignment therefore accounts for the reachability artefact, but not for the residual.
+
+\begin{table}[ht]
+\centering
+\caption[Frame-transform diagnostic for the single-segment PCC on Dataset 2.]{Effect of three frame transforms on the reachability and forward residual of the single-segment PCC baseline on the Dataset 2 validation split. The flip-and-translation variant lifts the reachable fraction from $51\%$ to $99.6\%$ but leaves the forward residual near $20$\,mm, showing that frame misalignment is not the limiting factor.}
+\label{tab:res_pcc_frame}
+\begin{tabularx}{\linewidth}{@{}l X X X@{}}
+\toprule
+Frame variant               & $L_0$ (mm) & Reachable fraction & Forward residual mean (mm) \\
+\midrule
+Raw                         & $67.24$    & $51.2\%$           & $22.24$                    \\
+Translation                 & $73.37$    & $84.2\%$           & $24.29$                    \\
+Flip and translation        & $70.44$    & $99.6\%$           & $20.50$                    \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Elongation diagnostic.}
+A second hypothesis was that the arm elongates under pressurisation, which a single-segment constant-length PCC has no degree of freedom to represent. Fig~\ref{fig:res_pcc_elongation} plots the training-split tip norm against two actuation summaries: the sum of the three valve commands, as a proxy for total pressurisation, and the cross-chamber standard deviation of the commands, as a proxy for bending magnitude. The tip norm correlates with total pressurisation at Pearson $r = +0.737$, and with the bending proxy at only $r = +0.429$. The elongation signal therefore dominates the bending signal in this workspace, and the constant arc length $L$ assumed in Eq.~\eqref{eq:pcc_L} is unable to absorb it. This is the structural ceiling on the reachable-subset forward residual.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{fig/pcc_elongation_diagnostic.pdf}
+\caption[Elongation and bending diagnostics for Dataset 2.]{Tip-norm dependence on two actuation summaries over the Dataset 2 training split. Left: tip norm against total valve actuation $V_1 + V_2 + V_3$ (Pearson $r = +0.737$). Right: tip norm against the cross-chamber standard deviation of the valve commands, a proxy for bending magnitude ($r = +0.429$). The stronger correlation with total pressurisation is a structural mismatch that the constant-length single-segment PCC model cannot represent.}
+\label{fig:res_pcc_elongation}
+\end{figure}
+
+\paragraph{Interpretation.}
+Taken together, the frame and elongation diagnostics indicate that the single-segment constant-length PCC can reach almost every target in the Dataset 2 workspace once the frame is corrected, but it cannot reproduce the pressure-induced elongation implied by the $r = +0.737$ correlation. The remaining ${\sim}22$\,mm mean residual on the reachable subset is therefore not a deficiency of the linear length-to-actuation fit but a ceiling imposed by the model class itself. This finding motivates the data-driven inverse-kinematics methods reported in the following sections, which do not commit to a fixed arc length and can therefore absorb the elongation coupling implicitly from the training data.
 
 \subsection{Two-Segment PCC on Dataset 1 (Exp 1B, if attempted)}
 % TODO: note whether the stretch goal was pursued.
