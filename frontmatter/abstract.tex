@@ -1,22 +1,14 @@
 \chapter{Abstract}
 \thispagestyle{plain}
 
-% Handbook §3.2: structured abstract, max 1 page, four components.
-
 \noindent\textbf{Background:}
-% TODO: pneumatic soft robots, IK challenge, limitations of existing
-%       analytical and learning-based methods, motivation from Ma et al. (2022).
+Pneumatic soft manipulators trade the precision of rigid-link arms for material compliance, which makes them attractive for safe human interaction but hard to control. The inverse-kinematics problem---computing the actuation commands that drive the tip to a target position---is complicated by a non-linear pressure-to-deformation map, viscoelastic hysteresis, and, on multi-segment arms, a multi-valued inverse that no single-branch model can capture. Four method families---analytical piecewise-constant-curvature inversion, feed-forward neural regression, recurrent neural regression, and Jacobian-learned iteration---have been proposed independently, but each has been evaluated on the platform its authors introduced, and no prior study has compared them side by side on identical data.
 
 \noindent\textbf{Methods:}
-% TODO: two datasets (Dataset 1 I-Support, Dataset 2 R01); four IK approaches compared
-%       (PCC analytical, MLP, LSTM, Jacobian-learned); PyElastica sim-to-real;
-%       trajectory tracking evaluation.
+This thesis reports a head-to-head empirical comparison of the four families on two pneumatic datasets with complementary actuation dimensionality: a six-chamber two-module I-Support recording (Dataset 1) and an undocumented three-valve recording (Dataset 2). A paired mid-marker ablation quantifies the value of partial-shape sensing on the over-actuated platform; a PyElastica-based sim-to-real study evaluates pre-training transfer at four real-data budgets; and a four-trajectory tracking protocol applies an identical evaluation to every method through a shared learned forward-kinematics arbiter.
 
 \noindent\textbf{Results:}
-% TODO: headline quantitative findings (MAE/RMSE/MAPE) for best method;
-%       comparison against Ma et al. (2022) MAPE<5% benchmark;
-%       key ablation insight (mid-marker, temporal).
+The analytical baseline is not competitive with even a small feed-forward network on either dataset, failing for distinct reasons: a constant-arc-length structural ceiling produces a $22$\,mm residual on Dataset 2, and a multi-valued-inverse calibration collapse produces a $51$\,mm closed-loop error on Dataset 1. Adding mid-marker input to the Dataset 1 network raises the pressure-space coefficient of determination from $0.32$ to $0.51$, the largest single-factor improvement observed. The warm-started Jacobian-learned iteration reaches $0.77$\,mm mean closed-loop tracking error on the Dataset 1 reference trajectories, matching the sub-millimetre order of magnitude reported by Fang et al.\ (2022). Sim-to-real pre-training produces no measurable improvement on Dataset 2 at any real-data budget, a negative result attributable to a fivefold synthetic--real workspace mismatch rather than to sample-count limits.
 
 \noindent\textbf{Conclusions:}
-% TODO: which IK family is recommended and under what conditions;
-%       practical take-away for pneumatic soft-robot control.
+No single method dominates every evaluation regime. The choice of inverse-kinematics method for a new pneumatic soft-robot arm depends on three physical properties of the platform and task---actuation redundancy, sensing coverage, and the overlap between any simulator prior and the real operating workspace---and this three-property criterion organises the regime-specific findings into a compact method-selection framework for practitioners.
