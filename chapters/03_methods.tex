@@ -458,9 +458,36 @@ Training epoch cap           & $500$                  & $500$ (fine-tune phase) 
 \paragraph{Data-efficiency sweep and evaluation.}
 Strategies A and B were repeated at four real-data budgets---$10\%$, $25\%$, $50\%$, and $100\%$ of the Dataset 2 training split---each taken as a temporally ordered prefix. Strategy C was run once, since it uses no real data. All trained networks were evaluated on the full Dataset 2 test split, with predictions de-standardised before the error metrics were computed. The four metrics of Section~\ref{sec:mlp_tip} (MAE, MAPE, NMAE, $R^{2}$) were reported for every strategy and budget combination, so that the effect of the simulator prior can be read as the gap between Strategies A and B at each budget, and the sim-only transfer quality can be read from Strategy C.
 
-\section{Trajectory Tracking Evaluation (Exp 6)}
-% TODO: unified protocol (figure-of-eight, circle, random) applied to
-%       every IK method.
+\section{Trajectory Tracking Evaluation}
+\label{sec:traj}
+
+The per-sample evaluations of Sections~\ref{sec:pcc_single}--\ref{sec:sim_transfer} report errors on the held-out test sets, in which targets are drawn from the same distribution as the training data. A second, complementary evaluation mode was added so that every method could be compared on smooth reference trajectories of the kind a soft-robot controller might have to follow in practice. The trajectory-tracking experiment applied the same protocol---the same target shapes, the same workspace sizing, the same arbiter forward model, and the same metrics---to every trained inverse-kinematics method on each dataset.
+
+\paragraph{Reference trajectories.}
+Four reference trajectories were generated at $120$ equally spaced target points each. A \emph{circle} and a \emph{square} were drawn in the $XY$ plane of the robot's workspace, with the four corners of the square placed on sampling points so that the high-curvature corner segments were always represented. A \emph{figure-of-eight} was generated as the lemniscate of Gerono,
+\begin{equation}
+  \mathbf{x}(t) = \bigl( r \sin t,\; r \sin t \cos t,\; 0 \bigr), \qquad t \in [0, 2\pi), \label{eq:traj_fig8}
+\end{equation}
+which passes through the workspace centre twice per period and therefore probes motion in both directions near the origin. A \emph{helical spiral} of two turns about the $z$-axis was added as the hardest trajectory: its pitch was set to the full $z$-extent of the workspace, so the target rises from the bottom of the workspace to the top while tracing a circle. Unlike the three planar trajectories, the spiral forces every method to predict axial actuation in addition to bending.
+
+\paragraph{Workspace sizing.}
+The four trajectories were sized to lie inside the observed workspace of each dataset. Workspace bounds were fitted from the union of the training and validation tip positions: the centre was taken as the midpoint of the $[2\%, 98\%]$ interquantile range along each axis, and a \emph{safe radius} was defined as the smallest per-axis half-extent of that interquantile range, shrunk by a factor of $0.45$ so that each trajectory stayed safely inside the observed workspace. The circle, square, and figure-of-eight used the safe radius; the spiral used $0.8 \times$ the safe radius in the horizontal plane and the full $z$-half-extent for its pitch. The same sizing rule was applied to both datasets, so that the resulting trajectories are interpretable in common workspace-normalised terms even though their absolute sizes differ.
+
+\paragraph{Arbiter forward model.}
+Each method under evaluation returns a sequence of pressure commands $\{\mathbf{p}_k\}_{k=1}^{120}$ from the target sequence $\{\mathbf{x}^{*}_k\}_{k=1}^{120}$. Pressure commands were converted back to achieved tip positions for error measurement by the trained forward-kinematics network $f_{\theta}$ of Section~\ref{sec:jacobian}: the achieved tip at target $k$ was taken to be $\hat{\mathbf{x}}_k = f_{\theta}(\mathbf{p}_k)$. Using a single forward model as an arbiter for every method ensures that any difference in tracking error reflects the quality of the predicted pressures, not a difference in how those pressures are mapped back to positions. The forward-kinematics network is not a perfect physical model of the robot, but it is the same physical model for every method, which is the property that the comparison requires.
+
+\paragraph{Methods under evaluation.}
+Every inverse-kinematics method trained in Sections~\ref{sec:pcc_single}--\ref{sec:sim_transfer} was included where a trained checkpoint existed. On Dataset 1 the set comprised the tip-only and tip-plus-mid feed-forward networks (Section~\ref{sec:mlp}), the two LSTM variants (Section~\ref{sec:lstm}), and the Jacobian-learned inverse kinematics with MLP warm-start (Section~\ref{sec:jacobian}). On Dataset 2 the set comprised the single-segment PCC baseline (Section~\ref{sec:pcc_single}), the tip-only feed-forward network, the LSTM, the Jacobian-learned inverse kinematics, and the sim-to-real fine-tuned network (Strategy~B at the full real-data budget; Section~\ref{sec:sim_transfer}). The feed-forward checkpoint used by the Jacobian warm-start was frozen at the same weights used in Section~\ref{sec:jacobian}, so the initialisation was identical across experiments.
+
+\paragraph{Handling of the mid-marker input.}
+The tip-plus-mid feed-forward network of Section~\ref{sec:mlp_tipmid} takes a six-dimensional input that pairs the tip and mid-section positions recorded in Dataset 1. A smooth reference trajectory is defined only in tip-space, so no ground-truth mid-marker signal exists for the generated targets. The mid channel was therefore substituted with the centroid of the training mid-marker distribution, held constant across the trajectory. This substitution allows the tip-plus-mid network to be scored on the same trajectories as the other methods, at the cost of forcing it onto a mid-channel value that is out-of-distribution for any non-centroid target; the implications of this choice are discussed with the results in Chapter~\ref{chap:results}.
+
+\paragraph{Metrics.}
+Six quantities were recorded for each combination of method, dataset, and trajectory. The tracking-error distribution was summarised by the mean, the maximum, the $95$th percentile, and the root-mean-square of the per-target Euclidean distance $\| \mathbf{x}^{*}_k - \hat{\mathbf{x}}_k \|$ in millimetres. The smoothness of the pressure-command stream was summarised by the sum of squared discrete third differences,
+\begin{equation}
+  \mathcal{J} = \sum_{k} \bigl\| \mathbf{p}_{k+3} - 3 \mathbf{p}_{k+2} + 3 \mathbf{p}_{k+1} - \mathbf{p}_k \bigr\|^{2}, \label{eq:traj_jerk}
+\end{equation}
+which approximates the integral of squared jerk and penalises methods whose predicted pressure sequences contain rapid oscillations. Finally, the per-target wall-clock inference time was recorded in milliseconds so that the runtime costs of the different methods can be compared at the tracking rate.
 
 \section{Training Setup and Evaluation}
 
