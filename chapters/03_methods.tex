@@ -63,9 +63,9 @@ After conversion, the tip coordinates spanned approximately $[-47.9, 53.8]$\,mm 
 
 Dataset 1 was split at the seed level. The seed-1 and seed-2 recordings formed the training set. The seed-3 recording served as the validation set. The three repetitions of seed~0 constituted the test set. This arrangement keeps all repeated runs together; intra-seed repeatability can then be reported on the test metric as a physical noise floor for the IK error (Section~\ref{sec:eda}). Frames from the same seed were never mixed across splits. Dataset 2 was split chronologically in the ratio $70/15/15$, yielding 12{,}650 training, 2{,}710 validation, and 2{,}712 test frames. Random shuffling was not applied at any stage.
 
-Tip and mid coordinates in Dataset 1 were expressed relative to the base triad. For each frame, the base position was taken as the mean of the three base markers and subtracted from the mid and tip means. This removes any static translation offset introduced by re-installing the robot between recordings. The correction is sufficient in the absence of rotational drift between sessions; the assumption was checked in the exploratory analysis (Section~\ref{sec:eda}). Frames in which either the mid or the tip triad contained a missing marker were dropped jointly, leaving 23{,}936 usable frames across the six recordings. Joint dropping ensures that the tip-only and tip-plus-mid configurations of Experiment~2 share an identical sample set.
+Tip and mid coordinates in Dataset 1 were expressed relative to the base triad. For each frame, the base position was taken as the mean of the three base markers and subtracted from the mid and tip means. This removes any static translation offset introduced by re-installing the robot between recordings. The correction is sufficient in the absence of rotational drift between sessions; the assumption was checked in the exploratory analysis (Section~\ref{sec:eda}). Frames in which either the mid or the tip triad contained a missing marker were dropped jointly, leaving 23{,}936 usable frames across the six recordings. Joint dropping ensures that the tip-only and tip-plus-mid variants of the neural inverse kinematics (Section~\ref{sec:mlp}) share an identical sample set.
 
-Inputs and outputs were standardised to zero mean and unit variance. Scaler parameters were fitted on the training split only, with input and output scalers fitted independently. For the sequence models in Experiment~3, standardisation was applied before the sliding-window construction. Sliding windows were constrained to remain within a single seed in Dataset 1 and within a single split in Dataset 2, so no window crossed a recording or split boundary.
+Inputs and outputs were standardised to zero mean and unit variance. Scaler parameters were fitted on the training split only, with input and output scalers fitted independently. For the recurrent models of Section~\ref{sec:lstm}, standardisation was applied before the sliding-window construction. Sliding windows were constrained to remain within a single seed in Dataset 1 and within a single split in Dataset 2, so no window crossed a recording or split boundary.
 
 \section{Exploratory Data Analysis (Exp 0)}
 \label{sec:eda}
@@ -156,9 +156,9 @@ Each test target was passed through Eqs.~\eqref{eq:pcc_multi_ik}--\eqref{eq:pcc_
 \section{Feed-Forward Neural IK}
 \label{sec:mlp}
 
-The analytical PCC baselines of Sections~\ref{sec:pcc_single}--\ref{sec:pcc_multi} rely on a specific mechanical model of the robot and lose accuracy when its assumptions fail. A feed-forward neural network removes that reliance: the actuation--pose map is learned directly from data, at the cost of modelling capacity that must be regularised by the training set. The approach follows Giorelli et al.\ \cite{giorelli2015nn}, who compared a neural inverse-kinematics model against an analytical Jacobian method on a cable-driven soft arm. Two variants were implemented: Experiment 2A (Section~\ref{sec:mlp_tip}) used the tip position alone as input, representing the minimal-sensing case, while Experiment 2B (Section~\ref{sec:mlp_tipmid}) augmented the input with the mid-section marker triad to test whether shape information improves the inverse on the two-segment Dataset 1 robot.
+The analytical PCC baselines of Sections~\ref{sec:pcc_single}--\ref{sec:pcc_multi} rely on a specific mechanical model of the robot and lose accuracy when its assumptions fail. A feed-forward neural network removes that reliance: the actuation--pose map is learned directly from data, at the cost of modelling capacity that must be regularised by the training set. The approach follows Giorelli et al.\ \cite{giorelli2015nn}, who compared a neural inverse-kinematics model against an analytical Jacobian method on a cable-driven soft arm. Two variants were implemented. A tip-only variant (Section~\ref{sec:mlp_tip}) used the base-relative tip position alone as input, representing the minimal-sensing case. A tip-plus-mid variant (Section~\ref{sec:mlp_tipmid}) augmented the input with the mid-section marker triad, to test whether shape information improves the inverse on the two-segment Dataset 1 robot.
 
-\subsection{MLP architecture and training (Exp 2A, tip-only)}
+\subsection{Tip-only MLP: architecture and training}
 \label{sec:mlp_tip}
 
 The network was a fully connected multilayer perceptron. The input was the base-relative tip position $(x, y, z)$ in millimetres (three features), and the output was the actuation command vector: three valve commands for Dataset 2 and six chamber pressures for Dataset 1. Four hidden layers were used, each followed by a ReLU activation; no dropout or weight decay was applied. The hidden widths were set to $[128, 256, 256, 128]$ for Dataset 1 and $[64, 128, 128, 64]$ for Dataset 2. The larger network was allocated to Dataset 1 because its output space is higher-dimensional (six chambers rather than three) and its training split is larger. Fig~\ref{fig:mlp_arch} shows the topology schematically, and Table~\ref{tab:mlp_config} lists the per-variant dimensions and the resulting trainable-parameter counts.
@@ -185,17 +185,17 @@ The network was a fully connected multilayer perceptron. The input was the base-
 \draw[arr] (h3) -- node[edgelbl] {ReLU} (h4);
 \draw[arr] (h4) -- node[edgelbl] {ReLU} (out);
 \end{tikzpicture}
-\caption[Schematic of the MLP architecture used in Experiments 2A and 2B.]{Schematic of the feed-forward MLP used in Experiments 2A and 2B. All three configurations share the same five-linear-layer topology with ReLU activations between hidden layers; the input dimension $d_{\text{in}}$, output dimension $d_{\text{out}}$, and hidden widths $(h_1, h_2, h_3, h_4)$ are listed in Table~\ref{tab:mlp_config}.}
+\caption[Schematic of the feed-forward MLP architecture.]{Schematic of the feed-forward MLP used for the tip-only and tip-plus-mid inverse-kinematics variants. All three configurations share the same five-linear-layer topology with ReLU activations between hidden layers; the input dimension $d_{\text{in}}$, output dimension $d_{\text{out}}$, and hidden widths $(h_1, h_2, h_3, h_4)$ are listed in Table~\ref{tab:mlp_config}.}
 \label{fig:mlp_arch}
 \end{figure}
 
 \begin{table}[ht]
 \centering
-\caption[MLP configurations for Experiments 2A and 2B.]{MLP input--output dimensions and hidden widths for Experiments 2A and 2B. The training protocol (MSE loss on standardised outputs, Adam optimiser at learning rate $10^{-3}$, batch size $64$, up to $500$ epochs with early stopping on the validation loss after $30$ epochs without improvement, no dropout or weight decay, and random seed $42$) is shared across all three variants.}
+\caption[MLP configurations for the feed-forward inverse-kinematics variants.]{MLP input--output dimensions and hidden widths for the three feed-forward inverse-kinematics variants. The training protocol (MSE loss on standardised outputs, Adam optimiser at learning rate $10^{-3}$, batch size $64$, up to $500$ epochs with early stopping on the validation loss after $30$ epochs without improvement, no dropout or weight decay, and random seed $42$) is shared across all three variants.}
 \label{tab:mlp_config}
 \begin{tabularx}{\linewidth}{@{}l X X X@{}}
 \toprule
-                 & Exp 2A (Dataset 1)           & Exp 2A (Dataset 2)         & Exp 2B (Dataset 1)            \\
+                 & Tip-only, Dataset 1          & Tip-only, Dataset 2        & Tip-plus-mid, Dataset 1       \\
 \midrule
 Input features   & tip $(x, y, z)$              & tip $(x, y, z)$            & tip + mid ($6$ coordinates)   \\
 Input dim        & 3                            & 3                          & 6                             \\
@@ -211,18 +211,19 @@ Training used the mean squared error (MSE) loss on the z-score--standardised out
 
 Test-set predictions were de-standardised through the stored output scaler before any error metric was computed. Four metrics were reported: mean absolute error (MAE) in the original actuation units; mean absolute percentage error (MAPE) computed on samples whose ground-truth pressure exceeded $1\%$ of the command-range maximum, to avoid divide-by-near-zero; normalised MAE (NMAE) expressed as a percentage of the command-range maximum; and the coefficient of determination $R^{2}$. Inference latency was measured as the wall-clock time to predict a single sample on the CPU.
 
-\subsection{Tip-plus-mid ablation (Exp 2B, Dataset 1)}
+\subsection{Tip-plus-mid ablation on Dataset 1}
 \label{sec:mlp_tipmid}
 
 The I-Support manipulator is underdetermined from its tip alone: the six-dimensional actuation space maps into a three-dimensional tip space, so multiple configurations can place the end-effector at the same point. A network that receives only the tip must collapse this ambiguity, which can succeed only when the training distribution steers consistently toward one solution branch. If the mid-section of the arm carries shape information that is independent of the tip, adding mid-marker coordinates to the input should reduce the ambiguity and lower the pressure-prediction error.
 
-Experiment 2B tested this hypothesis by extending the tip-only input with the base-relative mean of the mid-section marker triad, producing a six-feature input $(x_{\mathrm{tip}}, y_{\mathrm{tip}}, z_{\mathrm{tip}}, x_{\mathrm{mid}}, y_{\mathrm{mid}}, z_{\mathrm{mid}})$. Every other design choice was kept identical to Experiment 2A on Dataset 1: the same four-layer architecture with widths $[128, 256, 256, 128]$, the same ReLU activations, the same Adam optimiser and learning rate, the same batch size, the same early-stopping policy, and the same random seed. Only the first-layer fan-in changed, from three to six inputs.
+The hypothesis was tested by extending the tip-only input with the base-relative mean of the mid-section marker triad, producing a six-feature input $(x_{\mathrm{tip}}, y_{\mathrm{tip}}, z_{\mathrm{tip}}, x_{\mathrm{mid}}, y_{\mathrm{mid}}, z_{\mathrm{mid}})$. Every other design choice was kept identical to the tip-only network on Dataset 1: the same four-layer architecture with widths $[128, 256, 256, 128]$, the same ReLU activations, the same Adam optimiser and learning rate, the same batch size, the same early-stopping policy, and the same random seed. Only the first-layer fan-in changed, from three to six inputs.
 
 Because the Dataset 1 loader drops frames where either the mid or the tip triad is occluded (Section~\ref{sec:splits}), the two variants were trained and tested on an identical set of joint-valid frames. Any per-sample difference in pressure error can therefore be attributed to the input-feature change rather than to a mismatch in the sample set.
 
-The two variants were compared through three paired statistics computed on the common test set: the fraction of test frames on which 2B's per-sample pressure RMSE was lower than 2A's; the mean and bootstrap $95\%$ confidence interval of the per-sample error difference $(\mathrm{err}_{2A} - \mathrm{err}_{2B})$; and the two-sided Wilcoxon signed-rank test on the paired per-sample errors. Aggregate MAE, MAPE, and $R^{2}$ were also reported for each variant.
+The two variants were compared through three paired statistics computed on the common test set: the fraction of test frames on which the tip-plus-mid variant produced a lower per-sample pressure RMSE than the tip-only variant; the mean and bootstrap $95\%$ confidence interval of the per-frame error difference (tip-only minus tip-plus-mid); and the two-sided Wilcoxon signed-rank test on the paired per-frame errors. Aggregate MAE, MAPE, and $R^{2}$ were also reported for each variant.
 
 \section{Temporal IK with LSTM (Exp 3)}
+\label{sec:lstm}
 % TODO: windowing strategy, sequence length, stateful vs. stateless,
 %       expected benefit on hysteresis.
 
