@@ -146,8 +146,49 @@ A second hypothesis was that the arm elongates under pressurisation, which a sin
 \paragraph{Interpretation.}
 Taken together, the frame and elongation diagnostics indicate that the single-segment constant-length PCC can reach almost every target in the Dataset 2 workspace once the frame is corrected, but it cannot reproduce the pressure-induced elongation implied by the $r = +0.737$ correlation. The remaining ${\sim}22$\,mm mean residual on the reachable subset is therefore not a deficiency of the linear length-to-actuation fit but a ceiling imposed by the model class itself. This finding motivates the data-driven inverse-kinematics methods reported in the following sections, which do not commit to a fixed arc length and can therefore absorb the elongation coupling implicitly from the training data.
 
-\subsection{Two-Segment PCC on Dataset 1 (Exp 1B, if attempted)}
-% TODO: note whether the stretch goal was pursued.
+\subsection{Two-segment PCC on Dataset 1}
+\label{sec:res_pcc_multi}
+
+The two-segment PCC pipeline of Section~\ref{sec:pcc_multi} was calibrated on the $7{,}981$-frame training split of Dataset 1 and evaluated on the $11{,}956$-frame test split through the closed-loop protocol: each test target was passed through the SLSQP inverse, the linear length-to-pressure fit, and the forward kinematics of Eq.~\eqref{eq:pcc_multi_fk}, and the Euclidean distance to the target was recorded under the learned arbiter of Section~\ref{sec:jacobian}. The outcome is a clean negative result: the geometric inverse fits almost exactly, but the linear length-to-pressure calibration collapses and drives the closed-loop error above what even a small feed-forward network achieves on the same targets.
+
+\paragraph{Geometric inverse is essentially exact.}
+The SLSQP residual $\| \mathbf{x}^{*} - \mathbf{p}_{\mathrm{tip}}(\boldsymbol{\xi}) \|$ at convergence---measured \emph{before} the pressure calibration of Eq.~\eqref{eq:pcc_multi_linear} is applied---averaged $3.5 \times 10^{-3}$\,mm across the test set, with a $95$th percentile of $2.1 \times 10^{-4}$\,mm and a long-tail maximum of $10.2$\,mm attributable to the small fraction of targets at which SLSQP returned without fully converging. Every Dataset 1 tip target therefore admits a two-segment PCC configuration $\boldsymbol{\xi}$ that reproduces it to below the marker-noise floor. The warm-started SLSQP converged in a median of three iterations per target, and the per-target wall-clock time averaged $3$\,ms on the CPU.
+
+\paragraph{Closed-loop error.}
+Once the SLSQP configuration is mapped to chamber pressures by the linear fit and those pressures are passed through the arbiter forward map, the closed-loop position error rises to a mean of $51.22$\,mm with a $95$th percentile of $91.55$\,mm and a maximum of $165.63$\,mm (Table~\ref{tab:res_pcc_multi_vs_mlp}). The tip-only feed-forward network of Section~\ref{sec:mlp_tip}, evaluated on the same targets through the same arbiter, reaches a mean closed-loop error of $13.04$\,mm---a factor of $3.9$ smaller than PCC. Pressure-space metrics tell the same story: the two-segment PCC pipeline's coefficient of determination against the ground-truth chamber pressures is slightly negative ($R^{2} = -0.02$), so the linear length-to-pressure calibration explains no variance beyond predicting the per-chamber mean, whereas the feed-forward network achieves $R^{2} = +0.32$. Fig~\ref{fig:res_pcc_multi_compare} illustrates the contrast: the two distributions of closed-loop error are well separated on a logarithmic axis, and the per-chamber pressure residuals of the PCC pipeline sit consistently above those of the feed-forward network.
+
+\begin{table}[ht]
+\centering
+\caption[Two-segment PCC on Dataset 1 versus the tip-only feed-forward network.]{Two-segment PCC baseline on Dataset 1 compared with the tip-only feed-forward network of Section~\ref{sec:mlp_tip}, evaluated on the same $11{,}956$ test targets through the same learned forward-kinematics arbiter. The SLSQP IK-internal residual is the purely geometric fit quality before the pressure calibration step and is included only for the PCC pipeline. Pressure $R^{2}$ uses Eq.~\eqref{eq:r2}.}
+\label{tab:res_pcc_multi_vs_mlp}
+\begin{tabularx}{\linewidth}{@{}l X X@{}}
+\toprule
+Metric                                      & Two-segment PCC                   & Feed-forward network    \\
+\midrule
+Closed-loop position error, mean (mm)       & $51.22$                            & $13.04$                  \\
+Closed-loop position error, $95$th pct (mm) & $91.55$                            & $29.53$                  \\
+Closed-loop position error, max (mm)        & $165.63$                           & $147.66$                 \\
+SLSQP IK-internal residual, mean (mm)       & $3.5 \times 10^{-3}$               & ---                      \\
+Pressure MAE (command units)                & $26.30$                            & $20.13$                  \\
+Pressure MAPE                               & $104.4\%$                          & $71.3\%$                 \\
+Pressure $R^{2}$                            & $-0.02$                            & $+0.32$                  \\
+Inference time per target (ms)              & $3$                                & ${<}1$                   \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{fig/pcc_multi_error_compare.pdf}
+\caption[Two-segment PCC versus feed-forward network on Dataset 1.]{Two-segment PCC (blue) versus the tip-only feed-forward network (orange) on the Dataset 1 test split. (a) Log-scale histogram of the per-target closed-loop position error. (b) Per-chamber absolute pressure residual against the ground-truth command. The PCC and feed-forward closed-loop distributions are well separated by about half a decade, and the PCC per-chamber pressure residuals sit uniformly above the feed-forward residuals on every chamber, consistent with a calibration that regresses to the per-chamber mean.}
+\label{fig:res_pcc_multi_compare}
+\end{figure}
+
+\paragraph{Failure mechanism.}
+The combination of a near-zero geometric residual with a $51$\,mm closed-loop error is explained by the interaction between the multi-valued inverse and the linear length-to-pressure map. Dataset 1's six-chamber actuation is mapped into a three-dimensional tip position, so the inverse of Eq.~\eqref{eq:pcc_multi_fk} admits a continuous family of configurations for each target. The SLSQP solver picks out one member of this family per target, and the pressure calibration of Eq.~\eqref{eq:pcc_multi_linear} is fit by ordinary least squares on the training frames' $(\ell_{i}, V_{i})$ pairs. Because SLSQP can land on different solution branches for training frames whose tips are close together, the per-chamber scatter of $V_{i}$ at any given chamber length is large, and the least-squares fit regresses almost to the per-chamber mean ($R^{2} \approx 0$ per chamber). The calibrated pressures that the pipeline returns for a test target are therefore close to the training-set mean pressure rather than to the specific pressure that would have produced the target.
+
+\paragraph{Interpretation.}
+Together with the $22$\,mm structural ceiling on Dataset 2 (Section~\ref{sec:res_pcc_single}), this result shows that classical piecewise-constant-curvature inverse kinematics is not competitive with even a small feed-forward network on either of the two datasets used in this thesis. On Dataset 2, the constant-arc-length assumption is the bottleneck. On Dataset 1, that assumption holds well enough---the geometric inverse is essentially exact---but the multi-valued inverse combined with a linear pressure calibration destroys the connection between recovered chamber lengths and the actuation command that produced them. Two-segment PCC therefore serves in the remainder of this thesis as a classical baseline whose failure mode motivates the data-driven approaches of the following sections, rather than as a competitive method in its own right.
 
 \section{MLP IK (Exp 2)}
 
