@@ -154,13 +154,29 @@ mapped chamber lengths to the recorded pressure commands. The reference length w
 Each test target was passed through Eqs.~\eqref{eq:pcc_multi_ik}--\eqref{eq:pcc_multi_linear} to produce a predicted six-chamber pressure vector. Two families of metrics were reported. First, pressure-space errors---mean absolute error, mean absolute percentage error, and the coefficient of determination $R^{2}$---were computed against the ground-truth commands. Second, a closed-loop position error was obtained by passing the predicted pressures back through the forward map (Eq.~\eqref{eq:pcc_multi_fk}) and measuring the Euclidean distance between the reconstructed and target tips. The geometric IK residual, defined as the SLSQP objective at convergence before the pressure calibration, was also recorded, so that the geometric-fit quality can be separated from the calibration quality.
 
 \section{Feed-Forward Neural IK}
+\label{sec:mlp}
 
-\subsection{MLP Architecture (Exp 2A, Tip-Only)}
-% TODO: inputs (X,Y,Z), hidden layers, activation, outputs = pressures.
+The analytical PCC baselines of Sections~\ref{sec:pcc_single}--\ref{sec:pcc_multi} rely on a specific mechanical model of the robot and lose accuracy when its assumptions fail. A feed-forward neural network removes that reliance: the actuation--pose map is learned directly from data, at the cost of modelling capacity that must be regularised by the training set. The approach follows Giorelli et al.\ \cite{giorelli2015nn}, who compared a neural inverse-kinematics model against an analytical Jacobian method on a cable-driven soft arm. Two variants were implemented: Experiment 2A (Section~\ref{sec:mlp_tip}) used the tip position alone as input, representing the minimal-sensing case, while Experiment 2B (Section~\ref{sec:mlp_tipmid}) augmented the input with the mid-section marker triad to test whether shape information improves the inverse on the two-segment Dataset 1 robot.
 
-\subsection{Tip + Mid Ablation (Exp 2B, Dataset 1)}
-% TODO: augment inputs with mid-segment marker mean; motivation: the
-%       two-segment arm is underdetermined from tip alone.
+\subsection{MLP architecture and training (Exp 2A, tip-only)}
+\label{sec:mlp_tip}
+
+The network was a fully connected multilayer perceptron. The input was the base-relative tip position $(x, y, z)$ in millimetres (three features), and the output was the actuation command vector: three valve commands for Dataset 2 and six chamber pressures for Dataset 1. Four hidden layers were used, each followed by a ReLU activation; no dropout or weight decay was applied. The hidden widths were set to $[128, 256, 256, 128]$ for Dataset 1 and $[64, 128, 128, 64]$ for Dataset 2. The larger network was allocated to Dataset 1 because its output space is higher-dimensional (six chambers rather than three) and its training split is larger.
+
+Training used the mean squared error (MSE) loss on the z-score--standardised outputs, the standardisation having been fitted on the training split only (Section~\ref{sec:splits}). Parameter updates used the Adam optimiser with learning rate $10^{-3}$, batch size $64$, and no weight decay. Training was capped at $500$ epochs with early stopping on the validation loss, triggered after $30$ consecutive epochs without improvement. The checkpoint with the lowest validation loss was retained for all reported test metrics.
+
+Test-set predictions were de-standardised through the stored output scaler before any error metric was computed. Four metrics were reported: mean absolute error (MAE) in the original actuation units; mean absolute percentage error (MAPE) computed on samples whose ground-truth pressure exceeded $1\%$ of the command-range maximum, to avoid divide-by-near-zero; normalised MAE (NMAE) expressed as a percentage of the command-range maximum; and the coefficient of determination $R^{2}$. Inference latency was measured as the wall-clock time to predict a single sample on the CPU.
+
+\subsection{Tip-plus-mid ablation (Exp 2B, Dataset 1)}
+\label{sec:mlp_tipmid}
+
+The I-Support manipulator is underdetermined from its tip alone: the six-dimensional actuation space maps into a three-dimensional tip space, so multiple configurations can place the end-effector at the same point. A network that receives only the tip must collapse this ambiguity, which can succeed only when the training distribution steers consistently toward one solution branch. If the mid-section of the arm carries shape information that is independent of the tip, adding mid-marker coordinates to the input should reduce the ambiguity and lower the pressure-prediction error.
+
+Experiment 2B tested this hypothesis by extending the tip-only input with the base-relative mean of the mid-section marker triad, producing a six-feature input $(x_{\mathrm{tip}}, y_{\mathrm{tip}}, z_{\mathrm{tip}}, x_{\mathrm{mid}}, y_{\mathrm{mid}}, z_{\mathrm{mid}})$. Every other design choice was kept identical to Experiment 2A on Dataset 1: the same four-layer architecture with widths $[128, 256, 256, 128]$, the same ReLU activations, the same Adam optimiser and learning rate, the same batch size, the same early-stopping policy, and the same random seed. Only the first-layer fan-in changed, from three to six inputs.
+
+Because the Dataset 1 loader drops frames where either the mid or the tip triad is occluded (Section~\ref{sec:splits}), the two variants were trained and tested on an identical set of joint-valid frames. Any per-sample difference in pressure error can therefore be attributed to the input-feature change rather than to a mismatch in the sample set.
+
+The two variants were compared through three paired statistics computed on the common test set: the fraction of test frames on which 2B's per-sample pressure RMSE was lower than 2A's; the mean and bootstrap $95\%$ confidence interval of the per-sample error difference $(\mathrm{err}_{2A} - \mathrm{err}_{2B})$; and the two-sided Wilcoxon signed-rank test on the paired per-sample errors. Aggregate MAE, MAPE, and $R^{2}$ were also reported for each variant.
 
 \section{Temporal IK with LSTM (Exp 3)}
 % TODO: windowing strategy, sequence length, stateful vs. stateless,
