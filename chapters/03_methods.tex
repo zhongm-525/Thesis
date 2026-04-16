@@ -7,51 +7,84 @@
 \section{Datasets}
 \label{sec:datasets}
 
-Two pre-recorded datasets were used throughout this project. The first (DS1) was released with the I-Support soft manipulator developed by Manti et al.\ \cite{manti2016soft} and extended to a two-module configuration by Bianchi et al.\ \cite{bianchi2023learning}. The second (DS2) was distributed as a single file \texttt{all\_data\_R01.csv} [Insert citation for DS2 source once confirmed]. Both datasets contain pressure or valve commands paired with optical marker measurements, and therefore provide the input--output pairs required for learning-based inverse kinematics (IK). No hardware was operated in this study; all analyses and experiments were conducted on the archived data.
+Two pre-recorded datasets were analysed in this thesis. The first, Dataset 1, was released with the I-Support soft manipulator \cite{manti2016soft} and extended to a two-module configuration by Bianchi et al.\ \cite{bianchi2023learning}. The second, Dataset 2, was provided by the project supervisor and is not otherwise publicly released. Both supply the actuation--pose pairs required for learning-based inverse kinematics (IK). No hardware was operated. Table~\ref{tab:dataset_summary} summarises the main properties of the two datasets.
 
-\subsection{DS1 --- I-Support (20\,Hz)}
+\begin{table}[ht]
+\centering
+\caption[Summary of the two datasets used in this thesis.]{Summary of the two datasets used in this thesis. Workspace extents are quoted after the preprocessing described in Section~\ref{sec:splits}.}
+\label{tab:dataset_summary}
+\begin{tabularx}{\linewidth}{@{}l X X@{}}
+\toprule
+Property & Dataset 1 & Dataset 2 \\
+\midrule
+Robot configuration          & Two modules in series                     & Not documented \\
+Actuation channels           & 6 chambers                                & 3 valves \\
+Pressure range               & 0--120\,kPa (0--1.2\,bar)                 & --- \\
+Command range                & ---                                       & 0--2500 (un-calibrated) \\
+Sensing                      & 9 optical markers                         & Tip position only \\
+Sampling rate                & 20\,Hz                                    & Not documented \\
+Raw frames                   & 24{,}000                                  & 18{,}072 \\
+Usable frames                & 23{,}936                                  & 18{,}072 \\
+Workspace extent ($X, Y, Z$) & $\approx 200 \times 200 \times 80$\,mm    & $\approx 102 \times 104 \times 64$\,mm \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Dataset 1 --- I-Support (20\,Hz)}
 \label{sec:ds1}
 
-The I-Support platform is a silicone-based soft manipulator composed of two identical modules connected in series. Each module is 205\,mm long at rest, 60\,mm in diameter, and contains three McKibben-type fluidic chambers distributed uniformly at $120^{\circ}$ around the module axis. The second module is rotated by $60^{\circ}$ relative to the first, so that the six chambers together cover the full actuation circle. The robot was mounted vertically with the tip pointing downwards, giving a rest length of approximately 410\,mm and minimising the gravitational load on the end-effector. The maximum safe chamber pressure is 1.2\,bar (120\,kPa), and the pressure--deformation response is nonlinear, with a dead zone up to approximately 0.5\,bar \cite{manti2016soft}.
+The I-Support platform is a silicone soft manipulator composed of two identical modules connected in series. Each module is 205\,mm long at rest and 60\,mm in diameter. Three McKibben-type fluidic chambers are distributed uniformly at $120^{\circ}$ around each module axis. The second module is rotated by $60^{\circ}$ relative to the first, so the six chambers together cover the full actuation circle. The robot was mounted vertically with the tip pointing downwards, giving an assembled rest length of approximately 410\,mm. The maximum safe chamber pressure is 120\,kPa (1.2\,bar). The pressure--deformation response is nonlinear, with a dead zone below roughly 50\,kPa \cite{manti2016soft}.
 
-Nine reflective markers were attached to the robot in three triads, placed on the fixed base, on the mid-section between the two modules, and on the end-effector. A random-walk pressure sequence was generated and delivered to the six chambers at a sampling rate of 20\,Hz. Five recordings of 4{,}000 samples each were provided, corresponding to four NumPy seeds (0, 1, 2, 3). Seed~0 was repeated three times (\texttt{s0t1}, \texttt{s0t2}, \texttt{s0t3}) in order to quantify run-to-run repeatability. Each recording is stored as a single array of shape $(4000, 33)$: the first 27 columns hold the concatenated marker coordinates in millimetres, and the last six hold the chamber pressures in raw units where a value of approximately 100 corresponds to 1\,bar. Marker occlusions were present in roughly 0.5\% of the raw frames, and mid- and tip-marker occlusions were found to co-occur, so that the same subset of frames remained usable for every input variant considered in this work.
+Nine reflective markers were attached in three triads: on the fixed base, on the mid-section between the two modules, and on the end-effector. A random-walk pressure sequence drove the six chambers at a sampling rate of 20\,Hz. Six recordings of 4{,}000 frames were provided, covering four random-number-generator seeds (0, 1, 2, 3); the seed-0 trial was repeated three times to quantify run-to-run repeatability. Each frame holds the three-dimensional positions of all nine markers in millimetres, together with the six chamber pressures in raw units where a value near 100 corresponds to 1\,bar. Marker occlusions were present in roughly 0.3\% of the raw frames. The mid- and tip-marker triads were occluded at the same frames, so the same subset remained usable for every input variant considered in this thesis. The base-relative tip distribution is shown in Fig~\ref{fig:ds1_workspace}.
 
-\subsection{DS2 --- R01 pneumatic recording}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.95\linewidth]{fig/ds1_workspace_panel.pdf}
+\caption[Base-relative tip workspace of Dataset 1 by seed.]{Base-relative tip positions recorded in Dataset 1, grouped by seed. (a) 3D cloud; (b)--(d) orthogonal 2D projections.}
+\label{fig:ds1_workspace}
+\end{figure}
+
+\subsection{Dataset 2 --- three-valve pneumatic recording}
 \label{sec:ds2}
 
-DS2 is distributed as a single comma-separated file of 18{,}072 rows with six columns: three valve commands (\texttt{V1}, \texttt{V2}, \texttt{V3}) and the tip position (\texttt{X}, \texttt{Y}, \texttt{Z}). The valve commands are integer-valued within the range $[0, 2500]$; the mapping to physical pressure is not documented in the release, and the commands were therefore treated as an un-calibrated actuation coordinate throughout this work [Insert pressure calibration information from the original source if it becomes available]. Tip positions were supplied in inches and were converted to millimetres by multiplying by 25.4 before any further processing.
+Dataset 2 comprises 18{,}072 frames. Each frame contains three valve commands and a three-dimensional tip position. The valve commands are integer-valued within $[0, 2500]$. No calibration to physical pressure was provided with the release, so the commands were treated as an un-calibrated actuation coordinate. Tip positions were supplied in inches and were converted to millimetres (factor 25.4) before further processing.
 
-After conversion, the tip coordinates spanned approximately $[-47.9, 53.8]$\,mm in $X$, $[-47.7, 56.1]$\,mm in $Y$, and $[-27.5, 36.9]$\,mm in $Z$, describing a small single-segment workspace roughly 100\,mm wide and 60\,mm deep. The file contains no missing values and no duplicate rows. The rows are ordered as recorded and are treated here as a single sequence; the presence or absence of temporal structure was examined in the exploratory analysis (Section~\ref{sec:eda}) and informed the interpretation of the sequence models in Experiment~3, but the order itself was preserved in every preprocessing step. The source robot for DS2 is a single-segment three-valve pneumatic manipulator [Insert manufacturer, geometry, and citation when confirmed]; because its physical parameters were not included in the release, DS2 was treated as a black-box actuation-to-pose mapping, and geometric quantities were never assumed without verification.
+After conversion, the tip coordinates spanned approximately $[-47.9, 53.8]$\,mm laterally and $[-27.5, 36.9]$\,mm axially, giving a shallow disc-shaped workspace roughly 100\,mm wide and 65\,mm deep (Fig~\ref{fig:ds2_workspace}). No missing values and no duplicate frames were present. The frames are ordered as recorded. Whether this order carries any temporal structure was examined in the exploratory analysis (Section~\ref{sec:eda}); the original order was preserved at every preprocessing stage regardless. The source robot is driven by three valves, but its number of segments, geometry, and physical parameters are not documented in the release. Dataset 2 was therefore treated as a black-box mapping from actuation commands to tip pose, and no geometric assumptions were made without direct verification.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.95\linewidth]{fig/ds2_workspace_panel.pdf}
+\caption[Tip workspace of Dataset 2.]{Tip positions recorded in Dataset 2. (a) X--Y projection with colour encoding the sample index. (b) Each of the three tip coordinates plotted against the sample index.}
+\label{fig:ds2_workspace}
+\end{figure}
 
 \subsection{Data splits and preprocessing}
 \label{sec:splits}
 
-DS1 was split at the seed level. Seeds~1 and~2 (\texttt{s1t1}, \texttt{s2t1}) formed the training set, seed~3 (\texttt{s3t1}) served as the validation set, and the three repetitions of seed~0 constituted the test set. This arrangement keeps all three repeated runs together, so that intra-seed repeatability can be reported as a variance estimate on the test metric and used as a physical noise floor for the IK error [Insert measured seed-0 repeatability from Section~\ref{sec:eda}]. Samples from the same seed were never mixed across splits. DS2 was split chronologically in the ratio $70/15/15$, yielding 12{,}650 training, 2{,}710 validation, and 2{,}712 test frames. Random shuffling was not applied at any stage, in order to preserve the original recording order and to avoid leaking information between splits should any residual temporal structure be present.
+Dataset 1 was split at the seed level. The seed-1 and seed-2 recordings formed the training set. The seed-3 recording served as the validation set. The three repetitions of seed~0 constituted the test set. This arrangement keeps all repeated runs together; intra-seed repeatability can then be reported on the test metric as a physical noise floor for the IK error (Section~\ref{sec:eda}). Frames from the same seed were never mixed across splits. Dataset 2 was split chronologically in the ratio $70/15/15$, yielding 12{,}650 training, 2{,}710 validation, and 2{,}712 test frames. Random shuffling was not applied at any stage.
 
-Tip and mid coordinates in DS1 were expressed relative to the base triad on a per-frame basis. For each frame, the base position was computed as the mean of the three base markers, and the same per-frame subtraction was applied to the mid and tip means. This operation removes any static translation offset introduced by re-installing the robot between recordings, and is sufficient so long as no rotational drift occurs between sessions; the assumption was checked in the exploratory analysis (Section~\ref{sec:eda}) by comparing the per-seed workspace point clouds. Frames in which either the mid or the tip triad contained a missing marker were dropped jointly, leaving 23{,}936 usable frames across the five recordings. Dropping frames jointly, rather than separately per input variant, ensured that the tip-only and tip-plus-mid configurations of Experiment~2 could be compared on an identical sample set.
+Tip and mid coordinates in Dataset 1 were expressed relative to the base triad. For each frame, the base position was taken as the mean of the three base markers and subtracted from the mid and tip means. This removes any static translation offset introduced by re-installing the robot between recordings. The correction is sufficient in the absence of rotational drift between sessions; the assumption was checked in the exploratory analysis (Section~\ref{sec:eda}). Frames in which either the mid or the tip triad contained a missing marker were dropped jointly, leaving 23{,}936 usable frames across the six recordings. Joint dropping ensures that the tip-only and tip-plus-mid configurations of Experiment~2 share an identical sample set.
 
-Inputs and outputs were standardised to zero mean and unit variance using \texttt{StandardScaler} fitted on the training split only. Input and output scalers were fitted independently, and both were stored inside the model checkpoint metadata so that inference could be reproduced without recomputing dataset statistics. For the sequence models in Experiment~3, standardisation was applied before the sliding-window construction. Sliding windows were constrained to remain within a single seed in DS1 and within a single split in DS2, so that no window crossed a recording boundary or a split boundary.
-
-A fixed random seed of 42 was used for all stochastic operations, including scaler fitting order, mini-batch shuffling within a single DS1 seed, and weight initialisation.
+Inputs and outputs were standardised to zero mean and unit variance. Scaler parameters were fitted on the training split only, with input and output scalers fitted independently. For the sequence models in Experiment~3, standardisation was applied before the sliding-window construction. Sliding windows were constrained to remain within a single seed in Dataset 1 and within a single split in Dataset 2, so no window crossed a recording or split boundary.
 
 \section{Exploratory Data Analysis (Exp 0)}
 \label{sec:eda}
 
-Each dataset was examined in a brief exploratory analysis before model training. Three questions motivated the analysis. The first was whether the raw data matched the expected format. The second concerned the preprocessing assumptions stated in Section~\ref{sec:splits}. The third, applied only to DS1, quantified the physical noise floor attributable to the data-collection hardware.
+Each dataset was examined in a brief exploratory analysis before model training. Three questions motivated the analysis. The first was whether the raw data matched the expected format. The second concerned the preprocessing assumptions stated in Section~\ref{sec:splits}. The third, applied only to Dataset 1, quantified the physical noise floor attributable to the data-collection hardware.
 
-Each recording in DS1 was inspected along three axes. First, the per-frame base position was computed, and its spatial standard deviation along each axis was recorded as a check on base-stationarity within a recording. Second, the base-relative tip clouds of all four seeds were overlaid in three dimensions, as a check for rotational drift between recording sessions. Third, intra-seed repeatability was estimated from the three seed-0 trials. For this estimate, each tip sample in one trial was paired with its nearest neighbour in each of the other two trials, using Euclidean distance in the six-dimensional pressure-command space. The tip-position discrepancy between paired frames was then aggregated as a mean, median, and ninety-fifth percentile. Nearest-neighbour matching was preferred over direct index alignment because the seed-0 command sequences were observed to differ slightly across trials.
+Each recording in Dataset 1 was inspected along three axes. First, the per-frame base position was computed, and its spatial standard deviation along each axis was recorded as a check on base-stationarity within a recording. Second, the base-relative tip clouds of all four seeds were overlaid in three dimensions, as a check for rotational drift between recording sessions. Third, intra-seed repeatability was estimated from the three seed-0 trials. For this estimate, each tip sample in one trial was paired with its nearest neighbour in each of the other two trials, using Euclidean distance in the six-dimensional pressure-command space. The tip-position discrepancy between paired frames was then aggregated as a mean, median, and ninety-fifth percentile. Nearest-neighbour matching was preferred over direct index alignment because the seed-0 command sequences were observed to differ slightly across trials.
 
-DS2 was inspected for basic integrity and for the presence of temporal structure. Missing values and duplicate rows were counted. Histograms of the three valve commands and of the three tip coordinates were reviewed to identify any truncation, clipping, or quantisation artefacts. A step-size statistic was used to test whether consecutive rows carry any temporal relationship. The mean Euclidean tip-position step from each row to the next was computed, and the same statistic was measured on a shuffled copy of the recording; a ratio close to one indicates that consecutive rows are no more similar than random pairs, whereas a ratio well below one indicates trajectory-like correlation. Pearson correlations were also computed between each valve command and each tip coordinate, as a preliminary check that the actuation--pose mapping is non-degenerate before any model was fitted.
+Dataset 2 was inspected for basic integrity and for the presence of temporal structure. Missing values and duplicate rows were counted. Histograms of the three valve commands and of the three tip coordinates were reviewed to identify any truncation, clipping, or quantisation artefacts. A step-size statistic was used to test whether consecutive rows carry any temporal relationship. The mean Euclidean tip-position step from each row to the next was computed, and the same statistic was measured on a shuffled copy of the recording; a ratio close to one indicates that consecutive rows are no more similar than random pairs, whereas a ratio well below one indicates trajectory-like correlation. Pearson correlations were also computed between each valve command and each tip coordinate, as a preliminary check that the actuation--pose mapping is non-degenerate before any model was fitted.
 
 The numerical summaries and accompanying figures are presented in Chapter~\ref{chap:results}.
 
 \section{Analytical Baseline: PCC Inverse Kinematics}
 
-\subsection{Single-Segment PCC (Exp 1A, DS2)}
+\subsection{Single-Segment PCC (Exp 1A, Dataset 2)}
 % TODO: equations from Ma et al. (2022) eq. 11--21 (see
 %       docs/references/pcc_equations.md).
 
-\subsection{Two-Segment PCC (Exp 1B, DS1 --- stretch goal)}
+\subsection{Two-Segment PCC (Exp 1B, Dataset 1 --- stretch goal)}
 % TODO: compound PCC + SQP optimisation (see
 %       docs/references/multi_segment_pcc.md).
 
@@ -60,7 +93,7 @@ The numerical summaries and accompanying figures are presented in Chapter~\ref{c
 \subsection{MLP Architecture (Exp 2A, Tip-Only)}
 % TODO: inputs (X,Y,Z), hidden layers, activation, outputs = pressures.
 
-\subsection{Tip + Mid Ablation (Exp 2B, DS1)}
+\subsection{Tip + Mid Ablation (Exp 2B, Dataset 1)}
 % TODO: augment inputs with mid-segment marker mean; motivation: the
 %       two-segment arm is underdetermined from tip alone.
 
@@ -78,7 +111,7 @@ The numerical summaries and accompanying figures are presented in Chapter~\ref{c
 % TODO: Cosserat rod params from Manti 2016; pneumatic actuation model.
 
 \subsection{Sim-to-Real Transfer Protocol}
-% TODO: pre-train on synthetic, fine-tune on real DS2; evaluation protocol.
+% TODO: pre-train on synthetic, fine-tune on real Dataset 2; evaluation protocol.
 
 \section{Trajectory Tracking Evaluation (Exp 6)}
 % TODO: unified protocol (figure-of-eight, circle, random) applied to
@@ -87,7 +120,9 @@ The numerical summaries and accompanying figures are presented in Chapter~\ref{c
 \section{Training Setup and Evaluation}
 
 \subsection{Hardware, Software and Reproducibility}
-% TODO: GPU, PyTorch version, seed = 42, checkpoint metadata layout.
+% TODO: GPU and PyTorch version to be recorded from the working environment.
+
+A fixed random seed of 42 governed all stochastic operations, including scaler fitting order, mini-batch shuffling within a single Dataset 1 seed, and weight initialisation. Fitted input and output scalers were stored inside the model checkpoint metadata, so inference could be reproduced without recomputing dataset statistics.
 
 \subsection{Hyperparameter Selection}
 % TODO: validation-set driven search; never touch the test set.
