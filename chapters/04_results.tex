@@ -617,6 +617,38 @@ The master tables separate the methods into three regimes. For pressure-space ac
 \paragraph{Asterisks and caveats.}
 The tip-plus-mid feed-forward entry of Table~\ref{tab:res_overall_ds1} shows a trajectory-tracking error of $19.08$\,mm that is not comparable with the other entries on the same row: the evaluation protocol substitutes the training-distribution centroid for the mid-marker input at every trajectory target, which forces the network onto an out-of-distribution slice of its input space at every non-centroid target (Section~\ref{sec:res_traj}). The $19.08$\,mm is a consequence of that substitution rather than a property of the network itself, and is marked with an asterisk throughout the chapter. The single-segment PCC pressure MAE of $285.2$ on Dataset 2 is evaluated on the reachable $51\%$ of the test set only, as noted in Section~\ref{sec:res_pcc_single}; on the full test set the PCC baseline receives a penalised mean of $87.64$\,mm (Table~\ref{tab:res_pcc_single}), but the value is not directly comparable with the other rows of Table~\ref{tab:res_overall_ds2} because its definition differs. These two values are marked with dagger and asterisk to remind the reader when reading the tables in isolation.
 
-\section{Ablation Studies}
-% TODO: mid-marker ablation, sequence length, damping factor for DLS,
-%       simulator fine-tune ratio.
+\section{Ablation studies}
+\label{sec:res_ablation}
+
+Four design choices of Chapter~\ref{chap:methods} were validated by ablation studies reported alongside the corresponding method in Sections~\ref{sec:res_mlp_tipmid}--\ref{sec:res_sim_transfer}. This section consolidates the four ablations into Table~\ref{tab:res_ablation} and restates each headline finding in one paragraph; full numerical detail lives in the cross-referenced sections.
+
+\begin{table}[ht]
+\centering
+\caption[Ablation studies consolidated across Chapter 4.]{Summary of the four ablation studies reported in this chapter. Each ablation varied a single design choice and measured its effect on the test metrics of Section~\ref{sec:metrics}. The cross-referenced sections hold the full numerical detail, figures, and tables.}
+\label{tab:res_ablation}
+\begin{tabularx}{\linewidth}{@{}l X X@{}}
+\toprule
+Variable                            & Tested values                                                           & Reported in                                  \\
+\midrule
+Input features (Dataset 1)           & tip only; tip plus mid                                                  & Sections~\ref{sec:res_mlp_tipmid}, \ref{sec:res_lstm} \\
+Recurrent window length $K$          & $5$, $10$, $20$ frames (Datasets 1 and 2)                               & Section~\ref{sec:res_lstm}                    \\
+Jacobian-IK initialisation           & zero, warm-start, nearest-neighbour (Datasets 1 and 2)                  & Section~\ref{sec:res_jacobian}                \\
+Sim pre-training budget              & real-data fractions $10\%$, $25\%$, $50\%$, $100\%$ (Dataset 2)          & Section~\ref{sec:res_sim_transfer}            \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Input features.}
+Adding the mid-marker coordinates to the Dataset 1 input reduced pressure MAE by $15\%$ for the feed-forward network ($20.13 \to 17.05$, with $R^{2}$ lifted from $0.323$ to $0.437$; Section~\ref{sec:res_mlp_tipmid}) and by $20\%$ for the recurrent network ($21.00 \to 16.77$, with $R^{2}$ lifted from $0.283$ to $0.506$; Section~\ref{sec:res_lstm}). The paired Wilcoxon signed-rank test on the feed-forward comparison returned $p \approx 2.4 \times 10^{-211}$, with a bootstrap $95\%$ confidence interval of $[+2.15, +2.43]$ command units on the mean per-frame error difference. This is the largest single-factor improvement observed on Dataset 1 in this chapter, and the $R^{2}$ jump from $0.28$ to $0.51$ establishes the recurrent tip-plus-mid configuration as the best Dataset 1 model on the held-out per-sample test.
+
+\paragraph{Recurrent window length.}
+A three-point sweep over $K \in \{5, 10, 20\}$ (Section~\ref{sec:res_lstm}, Fig~\ref{fig:res_lstm_sweep}) produced qualitatively different behaviour on the two datasets. On Dataset 2 the test pressure MAE fell monotonically from $148.05$ at $K = 5$ to $138.68$ at $K = 20$; longer windows consistently helped, with diminishing but positive returns per added frame of context. On Dataset 1 with the tip-only input the test MAE stayed essentially flat ($20.50$ at $K = 5$, $21.11$ at $K = 20$), and the best-epoch index of the training run fell from $15$ to $1$: longer windows accelerated over-fitting rather than extracting new signal. The primary configuration $K = 10$ was retained in the headline comparisons because it balances the two datasets' preferences.
+
+\paragraph{Jacobian-IK initialisation.}
+Three strategies were compared under the protocol of Section~\ref{sec:res_jacobian}: a zero initial pressure, a warm-start from the direct feed-forward network, and a nearest-neighbour lookup in position space. The zero strategy failed on $22\%$ of Dataset 2 targets ($4.79$\,mm mean error, $230$\,mm maximum), because the zero vector lies far outside the active valve-command range $[0, 2500]$. The warm-start strategy converged on $98.5\%$ of Dataset 2 targets in $2.3$ iterations on average and on every Dataset 1 sub-sample target in $3.9$ iterations, while the nearest-neighbour strategy achieved near-identical final error with modestly more iterations. The warm-start was adopted as the primary configuration because it matches the reference value recommended by Fang et al.\ \cite{fang2022jacobian} and because it converges fastest without a measurable accuracy loss against the nearest-neighbour alternative.
+
+\paragraph{Sim pre-training data efficiency.}
+The sim-to-real study of Section~\ref{sec:res_sim_transfer} compared real-only training (Strategy~A) with sim pre-training followed by real fine-tuning (Strategy~B) at real-data budgets of $10\%$, $25\%$, $50\%$, and $100\%$ of the Dataset 2 training split. The pressure-MAE gap $\mathrm{MAE}_{B} - \mathrm{MAE}_{A}$ stayed within $\pm 1$ command unit at every budget and changed sign between the $10\%$ and $25\%$ budgets, so sim pre-training produced no measurable benefit on any real-data budget tested. The sim-only Strategy~C reached pressure MAE $981$ and $R^{2} = -1.71$ on the same test split. Most of the real-data gain was captured in the jump from $10\%$ to $25\%$ of the training split (MAE $185 \to 163$), and from $25\%$ to $100\%$ the MAE improved by only an additional $13$ command units. The dominant limitation is the five-fold workspace mismatch between the Manti-inspired simulator and the Dataset 2 robot, not the real-data budget.
+
+\paragraph{What was not swept.}
+Several design choices were fixed without a formal sweep and are recorded here for completeness. The damping coefficient $\lambda = 0.05$, step size $\alpha = 0.5$, and convergence tolerance $\tau = 1$\,mm of the Jacobian-learned iteration (Section~\ref{sec:jacobian}) were set at the reference values reported by Fang et al.\ \cite{fang2022jacobian}. The hidden-layer widths of the feed-forward networks were chosen by short pilot runs rather than a systematic grid search (Section~\ref{sec:hyperparam}). The coupling constants $k_m$ and $k_L$ of the PyElastica rod (Section~\ref{sec:sim_setup}) were fixed manually so that both I-Support behavioural anchors fell inside the calibrated Young's-modulus grid. Each of these would be a natural target for a follow-up sensitivity study.
