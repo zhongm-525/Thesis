@@ -1,9 +1,29 @@
 \chapter{Future Work}
 \label{chap:future_work}
 
-% TODO: candidate directions, e.g.
-%   1) Closed-loop validation on a physical pneumatic arm.
-%   2) Full-shape IK (predicting mid markers) beyond the tip.
-%   3) Higher-fidelity FEM simulation (SOFA) and broader sim-to-real tests.
-%   4) Online hysteresis compensation with recurrent Jacobian-learned IK.
-%   5) Multi-task / multi-robot transfer learning across platforms.
+The experiments of this thesis leave five concrete follow-up directions that would strengthen the evidence base for the conclusions of Chapter~\ref{chap:conclusion} and extend the three-property decision framework of Section~\ref{sec:disc_interpretation} to regimes that the present programme could not examine. The directions are ordered below from those that address the most immediate limitations of the evidence to those that explore architectural extensions of the methods themselves.
+
+\section{Closed-loop validation on physical hardware}
+\label{sec:fw_hw}
+
+Every quantitative claim in Chapter~\ref{chap:results} is measured through the learned forward-kinematics arbiter of Section~\ref{sec:jacobian}, whose own test-set MAE of $2.55$\,mm on Dataset 2 and $12.97$\,mm on Dataset 1 bounds the accuracy the closed-loop evaluations can distinguish (Section~\ref{sec:disc_lim_hw}). A follow-up study would re-deploy the best-performing configurations---the warm-started Jacobian-learned iteration on an I-Support-type arm and the sim-to-real fine-tuned feed-forward network on a three-valve-type arm---on physical hardware and measure the true closed-loop tracking error under real sensor noise, actuator saturation, and communication latency. The comparison with the arbiter-mediated numbers reported here would quantify the arbiter gap and set a hardware-validated bound on the methods, and would further confirm or overturn the Dataset 2 spiral-divergence observation (Section~\ref{sec:res_traj}) that currently rests on arbiter-space iterates rather than on measured tip positions.
+
+\section{Workspace-matched simulators for positive sim-to-real}
+\label{sec:fw_sim}
+
+The negative sim-to-real result of Section~\ref{sec:res_sim_transfer} was attributed in Section~\ref{sec:disc_sim} to a fivefold workspace mismatch between the Manti-inspired simulator and the Dataset 2 robot. The single most tractable follow-up is to rescale and recentre the simulator's synthetic workspace to match the recorded Dataset 2 tip distribution, and to rerun Strategies~A, B, and C of Section~\ref{sec:sim_transfer} at the four real-data budgets. If the $\mathrm{MAE}_{B} - \mathrm{MAE}_{A}$ gap remains within measurement noise after the workspace rescaling, the remaining reality-gap axes identified in Section~\ref{sec:disc_sim} can then be added to the simulator one at a time---a hyperelastic material model first, a viscoelastic damping term next, and an air-flow-delay parametrisation last---to isolate the per-axis contribution to the residual transfer gap. This sequence would produce the per-axis attribution that the present study could not measure.
+
+\section{Broader sensing modalities and platform diversity}
+\label{sec:fw_sensing}
+
+The three-property decision framework of Section~\ref{sec:disc_interpretation} was inferred from two pneumatic datasets with discrete optical-marker sensing. Three extensions would test its external validity. First, the tip-plus-mid ablation of Section~\ref{sec:res_mlp_tipmid} could be rerun with continuous shape sensors---fibre-Bragg-grating fibres, proprioceptive inertial cells, or capacitive skin---to test whether the $0.32 \to 0.51$ coefficient-of-determination lift on Dataset 1 transfers to continuous sensing modalities and how it scales with the number of distributed observations. Second, cable-driven and tendon-driven soft arms exhibit different hysteresis mechanisms and different failure modes from pneumatic arms; evaluating the four inverse-kinematics families on a cable-driven recording would test whether the three-property framework remains predictive outside the pneumatic regime. Third, larger-scale manipulators in the metre range have different noise-to-workspace ratios that could erode the sub-millimetre Jacobian advantage, and a benchmark against such a platform would quantify how the Chapter~\ref{chap:results} rankings scale with arm size.
+
+\section{Tighter statistical evidence through multi-seed training}
+\label{sec:fw_stats}
+
+Each network reported in Chapter~\ref{chap:results} was trained once from a single random seed (Section~\ref{sec:disc_lim_metric}). Retraining every configuration from three to five independent seeds and reporting confidence intervals on every summary metric would tighten the cross-method rankings of Section~\ref{sec:overall} and the small differences (on the order of $0.01$--$0.05$\,mm) reported for the Jacobian-initialisation strategies in Section~\ref{sec:res_jacobian}. The paired Wilcoxon and bootstrap confidence interval protocol of Section~\ref{sec:res_mlp_tipmid} is directly compatible with this extension. The additional training cost scales linearly with the number of seeds and is manageable within the Chapter~\ref{chap:methods} infrastructure; on the available workstation a three-seed rerun of all Chapter~\ref{chap:methods} experiments would complete within a day of wall-clock compute.
+
+\section{Hybrid controllers and explicit hysteresis models}
+\label{sec:fw_hybrids}
+
+Several architectural extensions beyond those tested here follow from the analysis in Chapter~\ref{chap:discussion} and are compatible with the checkpoints and pipelines already produced. A two-stage controller that runs the feed-forward network in a fast inner loop and triggers the Jacobian-learned iteration only when the measured position error exceeds a threshold would combine the low latency of the first method with the closed-loop accuracy of the second (Section~\ref{sec:disc_jacobian_vs_mlp}). A learned stopping criterion that exits the damped least-squares iteration before the divergence observed on the Dataset 2 spiral (Section~\ref{sec:res_traj}) would address the robustness cost of the Jacobian method without requiring a re-architecture of the solver. An explicit hysteresis parametrisation, such as a Preisach-operator or Bouc-Wen layer inserted between the actuation command and the forward-network input, would provide a physically grounded test of the hysteresis hypothesis that Section~\ref{sec:disc_temporal} could approach only through recurrent architectures. Each of these extensions is a natural evolution of the methods already implemented and would not require a new dataset or a new simulator to evaluate.
