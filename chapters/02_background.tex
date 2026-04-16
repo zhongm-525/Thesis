@@ -94,14 +94,32 @@ A hybrid route combines a learned forward model with an iterative inverse solver
 
 The Fang approach is a descendant of the analytical Jacobian iteration of Giorelli et al.\ \cite{giorelli2015nn}, with the analytical model replaced by a learned one. The replacement buys robustness to model mismatch---a network can fit a real soft robot with unmodelled hysteresis and manufacturing asymmetry where an analytical model cannot---at the cost of the forward network's test-set accuracy becoming a ceiling on the iterative inverse (Section~\ref{sec:disc_jacobian_vs_mlp}). Fang et al.'s other contribution, a sim-to-real transfer layer that adapts a simulator-trained network to a small real-data budget, was evaluated in this thesis under the workspace-geometry conditions of Dataset 2 (Section~\ref{sec:res_sim_transfer}) and is revisited in Section~\ref{sec:disc_sim}.
 
-\section{Simulation and Sim-to-Real Transfer}
+\section{Simulation and sim-to-real transfer}
+\label{sec:bg_sim}
 
-\subsection{PyElastica for Soft-Robot Simulation}
-% TODO: Cosserat-rod formulation, pneumatic actuation modelling.
+Soft-robot simulation enables data generation, controller training, and sim-to-real transfer studies that would be impractical to run directly on hardware. This section reviews the simulator used in this thesis (Section~\ref{sec:bg_sim_pyelastica}) and the main strategies that the literature has developed for transferring a sim-trained controller to a real platform (Section~\ref{sec:bg_sim_s2r}).
 
-\subsection{Sim-to-Real Strategies}
-% TODO: domain randomisation, residual learning, fine-tuning; applicability
-%       to pneumatic soft arms.
+\subsection{PyElastica for soft-robot simulation}
+\label{sec:bg_sim_pyelastica}
+
+The simulator used in this thesis is PyElastica, introduced by Gazzola et al.\ \cite{gazzola2018pyelastica} as a Python implementation of the special Cosserat-rod formulation discussed in Section~\ref{sec:bg_kin_cosserat}. A PyElastica rod is discretised into a sequence of nodes and elements along its centreline, and its state evolves under the combined action of gravity, internal elastic forces, damping, and user-specified actuation moments and forces. Integration uses a position-Verlet stepper, which is symplectic and therefore preserves long-horizon energy behaviour in a way that an explicit Euler integrator would not. The library is open-source and Python-native, which simplifies its integration with the PyTorch training pipelines that most recent soft-robot inverse-kinematics work uses.
+
+Alternatives to PyElastica occupy different points on the fidelity--tractability trade-off reviewed in Section~\ref{sec:bg_kin_cosserat}. The SOFA framework provides a full three-dimensional finite-element solver with support for rich contact and material models, but at substantially higher per-simulation cost and with a more involved parameter-calibration workflow. Differentiable-physics frameworks trade physical completeness for end-to-end differentiability, which enables gradient-based design and controller optimisation at the cost of a more restricted material law. Commercial multi-body simulators rarely support the large deformations that soft manipulators exhibit without bespoke extensions. For the sim-to-real purposes of this thesis---generating a pre-training dataset for a network that will subsequently be fine-tuned on real data---PyElastica's combination of Cosserat-level fidelity, open-source availability, and modest per-simulation cost made it a pragmatic choice.
+
+\subsection{Sim-to-real strategies}
+\label{sec:bg_sim_s2r}
+
+Transferring a learned controller from a simulator to a real robot is a recurring challenge across robotics, and soft robots inherit it in a particularly difficult form because their constitutive laws and manufacturing tolerances are harder to model than those of rigid systems (Section~\ref{sec:bg_pneumatic_design}). The literature offers four main strategies, each addressing a different slice of the reality gap.
+
+The first strategy is \emph{direct transfer}: a network is trained on simulator data and deployed on the real robot with no real-data adaptation. This is typically a baseline rather than a production choice, because the real robot and the simulator almost always disagree on some aspect of the dynamics and a sim-trained network cannot be expected to generalise to the real distribution. The Strategy-C configuration of Section~\ref{sec:res_sim_transfer} is an instance of direct transfer; its $R^{2} = -1.71$ on Dataset 2 is a characteristic failure mode.
+
+The second strategy is \emph{fine-tuning} a sim-pre-trained network on a small real-data budget. This is the most common soft-robotics route and is the one adopted by Fang et al.\ \cite{fang2022jacobian}, who reported a positive transfer result on a pneumatic platform for which a digital twin could be constructed. The cost is that the fine-tuning step discards part of what the pre-training learned whenever the simulator distribution does not overlap the real one; the Strategy-B configuration of Section~\ref{sec:res_sim_transfer} is an instance of this strategy.
+
+The third strategy is \emph{domain randomisation}, in which the simulator's parameters---mass, friction, actuator gains, and so on---are sampled from distributions that span the expected real-world range during training, so that the learned network is robust to any single parameter choice. Peng et al.\ \cite{peng2018simtoreal} demonstrated dynamics randomisation as a sim-to-real route for rigid-robot control and showed that policies trained with randomised simulators can transfer to the real world without any real-data fine-tuning. Domain randomisation is attractive when the reality gap can be captured by a small number of easily varied parameters; for soft robots, whose gaps include material hysteresis, viscoelastic creep, and manufacturing asymmetries that are difficult to parameterise analytically, the strategy is harder to apply directly.
+
+The fourth strategy is \emph{real-to-sim calibration}, in which real data are used to tune the simulator itself so that its outputs match the real robot on a held-out calibration sequence. This reverses the direction of transfer---real data teaches the simulator rather than the simulator teaching the controller---and it typically works best when the real platform is sufficiently documented that the simulator's structure is already close to correct and only its parameters need fitting. The Section~\ref{sec:res_sim_cal} calibration of the PyElastica rod to the Manti behavioural anchors is a simple form of this strategy; the more elaborate version would calibrate against the Dataset 2 robot's own data, which was not available in this project.
+
+Across these four strategies the soft-robotics sim-to-real literature converges on one recurring finding: the transfer value of a simulator is bounded above by its geometric and kinematic overlap with the real robot, and efforts to close the reality gap through architectural or regularisation tricks do not overcome a simulator whose workspace does not overlap the real one. This is the finding that the PyElastica experiments of Chapter~\ref{chap:results} reproduce on Dataset 2 and that the post-hoc analysis of Section~\ref{sec:disc_sim} dissects.
 
 \section{Evaluation Metrics and Benchmarks}
 
