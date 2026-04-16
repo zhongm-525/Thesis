@@ -7,24 +7,25 @@
 \section{Datasets}
 \label{sec:datasets}
 
-Two pre-recorded datasets were used throughout this project. The first (Dataset 1) was released with the I-Support soft manipulator developed by Manti et al.\ \cite{manti2016soft} and extended to a two-module configuration by Bianchi et al.\ \cite{bianchi2023learning}. The second (Dataset 2) was distributed as a comma-separated recording of actuation commands paired with tip positions [Insert citation for Dataset 2 source once confirmed]. Both datasets provide the input--output pairs required for learning-based inverse kinematics (IK): actuation commands paired with optical measurements of the end-effector. No hardware was operated in this study; all analyses and experiments were conducted on the archived data. A summary of the two datasets is given in Table~\ref{tab:dataset_summary}.
+Two pre-recorded datasets were analysed in this thesis. The first, Dataset 1, was released with the I-Support soft manipulator \cite{manti2016soft} and extended to a two-module configuration by Bianchi et al.\ \cite{bianchi2023learning}. The second, Dataset 2, was provided by the project supervisor and is not otherwise publicly released. Both supply the actuation--pose pairs required for learning-based inverse kinematics (IK). No hardware was operated. Table~\ref{tab:dataset_summary} summarises the main properties of the two datasets.
 
 \begin{table}[ht]
 \centering
-\caption[Summary of the two datasets used in this thesis.]{Summary of the two datasets used in this thesis. Workspace extents are measured after the preprocessing described in Section~\ref{sec:splits}.}
+\caption[Summary of the two datasets used in this thesis.]{Summary of the two datasets used in this thesis. Workspace extents are quoted after the preprocessing described in Section~\ref{sec:splits}.}
 \label{tab:dataset_summary}
 \begin{tabularx}{\linewidth}{@{}l X X@{}}
 \toprule
 Property & Dataset 1 & Dataset 2 \\
 \midrule
-Robot configuration     & Two modules in series    & Single segment \\
-Actuation channels      & 6 chambers               & 3 valves \\
-Actuation range         & 0--1.2\,bar              & 0--2500 (un-calibrated) \\
-Sensing                 & 9 optical markers        & Tip position only \\
-Sampling rate           & 20\,Hz                   & Not documented \\
-Raw frames              & 24{,}000                 & 18{,}072 \\
-Usable frames           & 23{,}936                 & 18{,}072 \\
-Workspace extent ($X, Y, Z$) & $\approx 200 \times 200 \times 80$\,mm & $\approx 102 \times 104 \times 64$\,mm \\
+Robot configuration          & Two modules in series                     & Not documented \\
+Actuation channels           & 6 chambers                                & 3 valves \\
+Pressure range               & 0--120\,kPa (0--1.2\,bar)                 & --- \\
+Command range                & ---                                       & 0--2500 (un-calibrated) \\
+Sensing                      & 9 optical markers                         & Tip position only \\
+Sampling rate                & 20\,Hz                                    & Not documented \\
+Raw frames                   & 24{,}000                                  & 18{,}072 \\
+Usable frames                & 23{,}936                                  & 18{,}072 \\
+Workspace extent ($X, Y, Z$) & $\approx 200 \times 200 \times 80$\,mm    & $\approx 102 \times 104 \times 64$\,mm \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -32,41 +33,39 @@ Workspace extent ($X, Y, Z$) & $\approx 200 \times 200 \times 80$\,mm & $\approx
 \subsection{Dataset 1 --- I-Support (20\,Hz)}
 \label{sec:ds1}
 
-The I-Support platform is a silicone-based soft manipulator composed of two identical modules connected in series. Each module is 205\,mm long at rest, 60\,mm in diameter, and contains three McKibben-type fluidic chambers distributed uniformly at $120^{\circ}$ around the module axis. The second module is rotated by $60^{\circ}$ relative to the first, so that the six chambers together cover the full actuation circle. The robot was mounted vertically with the tip pointing downwards, giving a rest length of approximately 410\,mm and minimising the gravitational load on the end-effector. The maximum safe chamber pressure is 1.2\,bar (120\,kPa), and the pressure--deformation response is nonlinear, with a dead zone up to approximately 0.5\,bar \cite{manti2016soft}.
+The I-Support platform is a silicone soft manipulator composed of two identical modules connected in series. Each module is 205\,mm long at rest and 60\,mm in diameter. Three McKibben-type fluidic chambers are distributed uniformly at $120^{\circ}$ around each module axis. The second module is rotated by $60^{\circ}$ relative to the first, so the six chambers together cover the full actuation circle. The robot was mounted vertically with the tip pointing downwards, giving an assembled rest length of approximately 410\,mm. The maximum safe chamber pressure is 120\,kPa (1.2\,bar). The pressure--deformation response is nonlinear, with a dead zone below roughly 50\,kPa \cite{manti2016soft}.
 
-Nine reflective markers were attached to the robot in three triads, placed on the fixed base, on the mid-section between the two modules, and on the end-effector. A random-walk pressure sequence was generated and delivered to the six chambers at a sampling rate of 20\,Hz. Six recordings of 4{,}000 frames each were provided, covering four random-number generator seeds (0, 1, 2, 3); the seed-0 trial was repeated three times to quantify run-to-run repeatability. Each frame contains the three-dimensional positions of all nine markers in millimetres, together with the six chamber pressures in raw units where a value of approximately 100 corresponds to 1\,bar. Marker occlusions were present in roughly 0.3\% of the raw frames, and the mid- and tip-marker triads were occluded at the same frames, so that the same subset remained usable for every input variant considered in this work. The distribution of base-relative tip positions across the four seeds is shown in Fig~\ref{fig:ds1_workspace}: the point clouds of the three unseen seeds overlap within the cloud contributed by the training seeds, which confirms that a common reach envelope is shared across recordings.
+Nine reflective markers were attached in three triads: on the fixed base, on the mid-section between the two modules, and on the end-effector. A random-walk pressure sequence drove the six chambers at a sampling rate of 20\,Hz. Six recordings of 4{,}000 frames were provided, covering four random-number-generator seeds (0, 1, 2, 3); the seed-0 trial was repeated three times to quantify run-to-run repeatability. Each frame holds the three-dimensional positions of all nine markers in millimetres, together with the six chamber pressures in raw units where a value near 100 corresponds to 1\,bar. Marker occlusions were present in roughly 0.3\% of the raw frames. The mid- and tip-marker triads were occluded at the same frames, so the same subset remained usable for every input variant considered in this thesis. The base-relative tip distribution is shown in Fig~\ref{fig:ds1_workspace}.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.85\linewidth]{fig/ds1_workspace_by_seed.pdf}
-\caption[Base-relative tip workspace of Dataset 1 across the four seeds.]{Base-relative tip positions recorded in Dataset 1, separated by seed. The dense central cloud represents the working envelope of the two-module I-Support arm under the random-walk pressure excitation; the sparse cluster at the upper $Z$ range corresponds to near-rest frames at the start of the seed-3 recording.}
+\includegraphics[width=0.95\linewidth]{fig/ds1_workspace_panel.pdf}
+\caption[Base-relative tip workspace of Dataset 1 by seed.]{Base-relative tip positions recorded in Dataset 1, grouped by seed. (a) 3D cloud; (b)--(d) orthogonal 2D projections.}
 \label{fig:ds1_workspace}
 \end{figure}
 
-\subsection{Dataset 2 --- single-segment pneumatic recording}
+\subsection{Dataset 2 --- three-valve pneumatic recording}
 \label{sec:ds2}
 
-Dataset 2 comprises 18{,}072 frames, each containing three valve commands and a three-dimensional tip position. The valve commands are integer-valued within the range $[0, 2500]$; the mapping to physical pressure is not documented in the release, and the commands were therefore treated as an un-calibrated actuation coordinate throughout this work [Insert pressure calibration information from the original source if it becomes available]. Tip positions were supplied in inches and were converted to millimetres by multiplying by 25.4 before any further processing.
+Dataset 2 comprises 18{,}072 frames. Each frame contains three valve commands and a three-dimensional tip position. The valve commands are integer-valued within $[0, 2500]$. No calibration to physical pressure was provided with the release, so the commands were treated as an un-calibrated actuation coordinate. Tip positions were supplied in inches and were converted to millimetres (factor 25.4) before further processing.
 
-After conversion, the tip coordinates spanned approximately $[-47.9, 53.8]$\,mm laterally and $[-27.5, 36.9]$\,mm axially, describing a shallow disc-shaped workspace roughly 100\,mm wide and 65\,mm deep (Fig~\ref{fig:ds2_workspace}). The data contain no missing values and no duplicate frames. The frames are ordered as recorded and are treated here as a single sequence; the presence or absence of temporal structure was examined in the exploratory analysis (Section~\ref{sec:eda}) and informed the interpretation of the sequence models in Experiment~3, but the recording order itself was preserved in every preprocessing step. The source robot for Dataset 2 is a single-segment three-valve pneumatic manipulator [Insert manufacturer, geometry, and citation when confirmed]; because its physical parameters were not included in the release, Dataset 2 was treated as a black-box actuation-to-pose mapping, and geometric quantities were never assumed without verification.
+After conversion, the tip coordinates spanned approximately $[-47.9, 53.8]$\,mm laterally and $[-27.5, 36.9]$\,mm axially, giving a shallow disc-shaped workspace roughly 100\,mm wide and 65\,mm deep (Fig~\ref{fig:ds2_workspace}). No missing values and no duplicate frames were present. The frames are ordered as recorded. Whether this order carries any temporal structure was examined in the exploratory analysis (Section~\ref{sec:eda}); the original order was preserved at every preprocessing stage regardless. The source robot is driven by three valves, but its number of segments, geometry, and physical parameters are not documented in the release. Dataset 2 was therefore treated as a black-box mapping from actuation commands to tip pose, and no geometric assumptions were made without direct verification.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.8\linewidth]{fig/ds2_workspace_3d.pdf}
-\caption[Tip workspace of the Dataset 2 single-segment arm.]{Tip positions in Dataset 2, with colour encoding the sample index along the recording. The workspace forms a shallow disc of approximately 100\,mm lateral extent and 65\,mm depth, and the uniform distribution of colours throughout the cloud indicates that no systematic drift was present across the recording.}
+\includegraphics[width=0.95\linewidth]{fig/ds2_workspace_panel.pdf}
+\caption[Tip workspace of Dataset 2.]{Tip positions recorded in Dataset 2. (a) X--Y projection with colour encoding the sample index. (b) Each of the three tip coordinates plotted against the sample index.}
 \label{fig:ds2_workspace}
 \end{figure}
 
 \subsection{Data splits and preprocessing}
 \label{sec:splits}
 
-Dataset 1 was split at the seed level. The seed-1 and seed-2 recordings formed the training set, the seed-3 recording served as the validation set, and the three repetitions of seed~0 constituted the test set. This arrangement keeps all three repeated runs together, so that intra-seed repeatability can be reported as a variance estimate on the test metric and used as a physical noise floor for the IK error [Insert measured seed-0 repeatability from Section~\ref{sec:eda}]. Frames from the same seed were never mixed across splits. Dataset 2 was split chronologically in the ratio $70/15/15$, yielding 12{,}650 training, 2{,}710 validation, and 2{,}712 test frames. Random shuffling was not applied at any stage, in order to preserve the original recording order and to avoid leaking information between splits should any residual temporal structure be present.
+Dataset 1 was split at the seed level. The seed-1 and seed-2 recordings formed the training set. The seed-3 recording served as the validation set. The three repetitions of seed~0 constituted the test set. This arrangement keeps all repeated runs together; intra-seed repeatability can then be reported on the test metric as a physical noise floor for the IK error (Section~\ref{sec:eda}). Frames from the same seed were never mixed across splits. Dataset 2 was split chronologically in the ratio $70/15/15$, yielding 12{,}650 training, 2{,}710 validation, and 2{,}712 test frames. Random shuffling was not applied at any stage.
 
-Tip and mid coordinates in Dataset 1 were expressed relative to the base triad on a per-frame basis. For each frame, the base position was computed as the mean of the three base markers, and the same per-frame subtraction was applied to the mid and tip means. This operation removes any static translation offset introduced by re-installing the robot between recordings, and is sufficient so long as no rotational drift occurs between sessions; the assumption was checked in the exploratory analysis (Section~\ref{sec:eda}) by comparing the per-seed workspace point clouds shown in Fig~\ref{fig:ds1_workspace}. Frames in which either the mid or the tip triad contained a missing marker were dropped jointly, leaving 23{,}936 usable frames across the six recordings. Dropping frames jointly, rather than separately per input variant, ensured that the tip-only and tip-plus-mid configurations of Experiment~2 could be compared on an identical sample set.
+Tip and mid coordinates in Dataset 1 were expressed relative to the base triad. For each frame, the base position was taken as the mean of the three base markers and subtracted from the mid and tip means. This removes any static translation offset introduced by re-installing the robot between recordings. The correction is sufficient in the absence of rotational drift between sessions; the assumption was checked in the exploratory analysis (Section~\ref{sec:eda}). Frames in which either the mid or the tip triad contained a missing marker were dropped jointly, leaving 23{,}936 usable frames across the six recordings. Joint dropping ensures that the tip-only and tip-plus-mid configurations of Experiment~2 share an identical sample set.
 
-Inputs and outputs were standardised to zero mean and unit variance. The scaler parameters were fitted on the training split only, with input and output scalers fitted independently, and both were stored inside the model checkpoint metadata so that inference could be reproduced without recomputing dataset statistics. For the sequence models in Experiment~3, standardisation was applied before the sliding-window construction. Sliding windows were constrained to remain within a single seed in Dataset 1 and within a single split in Dataset 2, so that no window crossed a recording boundary or a split boundary.
-
-A fixed random seed of 42 was used for all stochastic operations, including scaler fitting order, mini-batch shuffling within a single Dataset 1 seed, and weight initialisation.
+Inputs and outputs were standardised to zero mean and unit variance. Scaler parameters were fitted on the training split only, with input and output scalers fitted independently. For the sequence models in Experiment~3, standardisation was applied before the sliding-window construction. Sliding windows were constrained to remain within a single seed in Dataset 1 and within a single split in Dataset 2, so no window crossed a recording or split boundary.
 
 \section{Exploratory Data Analysis (Exp 0)}
 % TODO: workspace shape, marker-occlusion rate, time-series verification
@@ -114,7 +113,9 @@ A fixed random seed of 42 was used for all stochastic operations, including scal
 \section{Training Setup and Evaluation}
 
 \subsection{Hardware, Software and Reproducibility}
-% TODO: GPU, PyTorch version, seed = 42, checkpoint metadata layout.
+% TODO: GPU and PyTorch version to be recorded from the working environment.
+
+A fixed random seed of 42 governed all stochastic operations, including scaler fitting order, mini-batch shuffling within a single Dataset 1 seed, and weight initialisation. Fitted input and output scalers were stored inside the model checkpoint metadata, so inference could be reproduced without recomputing dataset statistics.
 
 \subsection{Hyperparameter Selection}
 % TODO: validation-set driven search; never touch the test set.
