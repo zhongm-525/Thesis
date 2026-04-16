@@ -81,8 +81,35 @@ The numerical summaries and accompanying figures are presented in Chapter~\ref{c
 \section{Analytical Baseline: PCC Inverse Kinematics}
 
 \subsection{Single-Segment PCC (Exp 1A, Dataset 2)}
-% TODO: equations from Ma et al. (2022) eq. 11--21 (see
-%       docs/references/pcc_equations.md).
+\label{sec:pcc_single}
+
+A single-segment, three-chamber piecewise-constant-curvature (PCC) model was used as an analytical inverse-kinematics baseline on Dataset 2. The PCC formulation assumes that the actuator centreline bends as a circular arc of constant curvature, with three fluidic chambers equally spaced at $120^{\circ}$ around the neutral axis and offset from it by a distance $d$ \cite{webster2010review}. The geometric inverse kinematics were taken from Ma et al.\ \cite{ma2022bp}, Eqs.\ 11--17, with three configuration variables: the azimuth $\varphi$ of the bending plane, the bending angle $\theta$, and the arc length $L$ of the centreline.
+
+\paragraph{Geometry.}
+Given a target tip position $(x, y, z)$ in the base-relative frame, with the straight-pose axis along $+z$, the configuration was computed as
+\begin{align}
+  \varphi &= \operatorname{atan2}(y, x), \label{eq:pcc_phi} \\
+  \theta  &= \arccos\!\left(\frac{z^{2} - (x^{2} + y^{2})}{z^{2} + (x^{2} + y^{2})}\right), \label{eq:pcc_theta} \\
+  L       &= z \, \theta / \sin\theta. \label{eq:pcc_L}
+\end{align}
+Targets with $z \le 0$ fall outside the single-segment PCC workspace and were flagged as unreachable. The straight-pose singularity ($x = y = 0$) was handled as a special case with $\theta = 0$, $\varphi$ arbitrary, and $L = z$. The configuration was then mapped to three chamber lengths $(\ell_1, \ell_2, \ell_3)$ by
+\begin{equation}
+  \ell_i = L - \theta \, d \, \cos(\alpha_i - \varphi), \qquad \alpha_i \in \{\pi/2,\ 7\pi/6,\ 11\pi/6\}, \label{eq:pcc_lengths}
+\end{equation}
+where $\alpha_i$ denotes the azimuth of chamber $i$.
+
+\paragraph{Length-to-actuation map.}
+Ma et al.\ \cite{ma2022bp} relate chamber pressure to chamber length through a hyper-elastic constitutive law whose material constants are robot-specific. The material and the physical meaning of the actuation commands in Dataset 2 are not documented (Section~\ref{sec:ds2}), so a simpler data-driven map was used. Each valve command was modelled as a linear function of its chamber-length change,
+\begin{equation}
+  V_i = a_i \, (\ell_i - L_0) + b_i, \qquad i = 1, 2, 3, \label{eq:pcc_linear}
+\end{equation}
+where $L_0$ is the reference segment length. This form keeps the number of free parameters small (six coefficients in total) and remains interpretable: the slopes $a_i$ capture how strongly a chamber elongates per unit command, and the intercepts $b_i$ capture the straight-pose offset of the actuation.
+
+\paragraph{Parameter choices.}
+The chamber offset was fixed to $d = 12$\,mm, a representative value for the I-Support platform \cite{manti2016soft}, because the geometry of the Dataset 2 robot is not documented. The reference length was set to $L_0 = 1.05 \cdot \max_k \| \mathbf{p}_k \|$, where $\mathbf{p}_k$ denotes the $k$-th training tip position; the multiplier of $1.05$ places $L_0$ slightly above the recorded workspace, so that most training samples satisfy $\ell_i < L_0$ and the fitted slopes are well conditioned. The coefficients $(a_i, b_i)$ in Eq.~\eqref{eq:pcc_linear} were fitted by ordinary least squares on the training split. Training samples whose targets fell outside the PCC workspace were dropped from the fit.
+
+\paragraph{Inference and evaluation.}
+At inference, each test tip position was passed through Eqs.~\eqref{eq:pcc_phi}--\eqref{eq:pcc_linear} to produce three predicted valve commands, or an unreachable flag when the target failed the workspace condition. Two groups of errors were reported. On the reachable subset, pressure-space metrics---mean squared error, mean absolute error, mean absolute percentage error on samples with $|V| > 50$, and normalised mean absolute error relative to the full command range---were computed against the ground-truth valve commands. A forward residual was also computed on the reachable subset by inverting Eq.~\eqref{eq:pcc_linear} to recover chamber lengths from the predicted commands, inverting Eq.~\eqref{eq:pcc_lengths} to recover the configuration $(\theta, \varphi, L)$, and finally applying the closed-form PCC forward kinematics to obtain a reconstructed tip position; the Euclidean distance between the reconstructed and the target tip position was reported as the forward residual. For the full test set, a penalised mean was also reported, in which unreachable samples were assigned an error equal to the workspace diameter estimated from the training tip positions. The penalised mean provides a conservative upper bound that can be compared against downstream methods without over-crediting PCC on its favourable subset.
 
 \subsection{Two-Segment PCC (Exp 1B, Dataset 1 --- stretch goal)}
 % TODO: compound PCC + SQP optimisation (see
