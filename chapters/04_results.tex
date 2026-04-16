@@ -4,8 +4,75 @@
 % TODO: bridging paragraph: all experiments reported against identical
 %       splits; headline comparison table appears in Section \ref{sec:overall}.
 
-\section{Data Exploration Findings (Exp 0)}
-% TODO: workspace plots, occlusion statistics, Dataset 2 time-series confirmation.
+\section{Data Exploration Findings}
+\label{sec:eda_findings}
+
+The exploratory analysis of Section~\ref{sec:eda} produced findings on each dataset that guided the modelling and preprocessing decisions used in the remainder of the thesis. Dataset 1 findings are reported in Section~\ref{sec:eda_ds1} and Dataset 2 findings in Section~\ref{sec:eda_ds2}.
+
+\subsection{Dataset 1}
+\label{sec:eda_ds1}
+
+\paragraph{Data integrity and occlusion.}
+All six recordings of Dataset 1 contained exactly $4{,}000$ raw frames, giving $24{,}000$ frames before preprocessing. Marker occlusion was negligible (Table~\ref{tab:eda_ds1_occlusion}): the six recordings lost between $0$ and $34$ frames each to marker drop-outs, for a total of $64$ lost frames ($0.27\%$ of the raw total). The mid-marker and tip-marker occlusion masks were identical in every recording, so the same $23{,}936$ frames remain usable whether the tip-only or the tip-plus-mid input is selected.
+
+\begin{table}[ht]
+\centering
+\caption[Per-recording occlusion counts for Dataset 1.]{Per-recording occlusion counts for Dataset 1. Each recording contains $4{,}000$ raw frames; usable frames are those in which every marker in the mid and tip triads was visible. The seed-0 entries correspond to the three repeated trials used to estimate the physical noise floor.}
+\label{tab:eda_ds1_occlusion}
+\begin{tabularx}{\linewidth}{@{}l l X X X@{}}
+\toprule
+Seed       & Trial  & Raw frames & Usable frames & Occlusion \\
+\midrule
+1          & 1      & $4{,}000$  & $3{,}981$     & $0.48\%$  \\
+2          & 1      & $4{,}000$  & $4{,}000$     & $0.00\%$  \\
+3          & 1      & $4{,}000$  & $3{,}999$     & $0.03\%$  \\
+0          & 1      & $4{,}000$  & $3{,}990$     & $0.25\%$  \\
+0          & 2      & $4{,}000$  & $4{,}000$     & $0.00\%$  \\
+0          & 3      & $4{,}000$  & $3{,}966$     & $0.85\%$  \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Base stationarity.}
+The per-frame standard deviation of the base-marker mean position was computed for each recording. Five of the six recordings showed apparent base motion of up to $\sim$$32$\,mm, but inspection of the raw marker stream confirmed that this was an artefact of the NaN-aware mean: when one or two of the three base markers were momentarily occluded, the mean collapsed onto the remaining marker's offset from the cluster centroid and inflated the apparent deviation. Once frames with any occluded marker were removed, the standard deviation fell below the optical marker resolution. The base was therefore treated as fixed within every recording, and this finding supports the translation-only preprocessing used in Section~\ref{sec:splits}.
+
+\paragraph{Cross-seed workspace overlap.}
+The base-relative tip point clouds of the four seeds overlap within a $\sim$$12$\,mm radius of each other (Fig~\ref{fig:ds1_workspace}), which is small compared with the $\sim$$48$\,mm intra-seed tip-position spread. This confirmation supports the decision to use a simple per-frame base subtraction rather than the fuller local-frame rotation that would have been needed had the seeds shown rotational drift between recording sessions.
+
+\paragraph{Tip and mid magnitudes.}
+The mean base-relative tip magnitude was approximately $375$\,mm, with a maximum of $\sim$$405$\,mm, consistent with the $\sim$$410$\,mm assembled length of the I-Support arm. The mean mid-marker magnitude was approximately $198$\,mm, consistent with the mid-section sitting near the midpoint of the two-segment arm. Both quantities fall well within the $500$\,mm sanity threshold used in the loader's unit tests, so no frame was rejected on magnitude grounds.
+
+\paragraph{Seed-0 repeatability.}
+The three repetitions of the seed-0 random-walk were used to estimate the physical noise floor of the tip measurement. For each tip sample in one repetition, the nearest neighbour in each of the other two repetitions was located in the six-dimensional pressure-command space, and the standard deviation of the three paired tip positions was recorded per frame. The resulting distribution (Fig~\ref{fig:ds1_repeatability}) had a mean of $2.29$\,mm, a median of $1.88$\,mm, and a ninety-fifth percentile of $4.14$\,mm, with a long tail out to $60.3$\,mm driven by a handful of outliers coincident with brief occlusion gaps. The $\sim$$2.3$\,mm mean is taken as the physical noise floor of the Dataset 1 closed-loop error in the rest of this chapter: an inverse-kinematics method achieving a lower closed-loop error on Dataset 1 would be fitting measurement noise rather than the underlying actuation--pose relationship.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.75\linewidth]{fig/ds1_seed0_repeatability.pdf}
+\caption[Seed-0 repeatability distribution for Dataset 1.]{Per-sample tip-position standard deviation across the three repetitions of the Dataset 1 seed-0 recording, with frames paired by nearest neighbour in the six-dimensional pressure-command space. The bulk of the distribution falls below $5$\,mm; the long tail past $10$\,mm is driven by isolated frames located near occlusion gaps.}
+\label{fig:ds1_repeatability}
+\end{figure}
+
+\paragraph{Pressure-command variation across seed-0 repetitions.}
+Contrary to the expectation set by a shared random-number-generator seed, the pressure-command sequences of the three seed-0 repetitions were not bit-identical. The mean per-frame Euclidean distance between the first and second repetitions was $13.2$ raw units, and between the first and third repetitions was $45.2$ raw units, on a command range of $0$--$100$ raw units. Pairing frames by recording index would therefore compare slightly different pressure commands; the nearest-neighbour matching used above is the robust alternative and was adopted for the repeatability statistic.
+
+\subsection{Dataset 2}
+\label{sec:eda_ds2}
+
+\paragraph{Data integrity.}
+Dataset 2 contains $18{,}072$ rows, with no missing values and no duplicate rows. The three valve commands are integer-valued over the interval $[0, 2500]$, and no row lies outside this band. After the inch-to-millimetre conversion of Section~\ref{sec:ds2}, the tip coordinates spanned $[-47.9, 53.8]$\,mm in $X$, $[-47.7, 56.1]$\,mm in $Y$, and $[-27.5, 36.9]$\,mm in $Z$, giving the flat disc-shaped workspace of approximately $100$\,mm width and $65$\,mm depth shown in Fig~\ref{fig:ds2_workspace}.
+
+\paragraph{Absence of temporal structure.}
+The step-size statistic described in Section~\ref{sec:eda} was used to test whether consecutive rows carry any temporal dependency. The mean Euclidean step between consecutive rows in tip-position space was $32.49$\,mm, and the mean step after shuffling the rows was $33.84$\,mm, giving a ratio of $0.96$. The analogous ratio in the three-dimensional valve-command space was $1.003$. Both ratios are indistinguishable from unity. The rows of Dataset 2 therefore behave as statistically independent samples drawn from a fixed distribution rather than as points along a trajectory. Dataset 2 was treated as an IID collection in the remainder of the thesis. The $70/15/15$ recording-order split of Section~\ref{sec:splits} was kept as the default, both to preserve the option of detecting any subtle residual temporal structure in a downstream experiment and to comply with the original data-handling protocol.
+
+\paragraph{Actuation--pose correlation.}
+Pearson correlations between each valve command and each tip coordinate are shown in Fig~\ref{fig:ds2_correlation}. Every valve--coordinate pair has a Pearson coefficient with magnitude above $0.09$, and the strongest correlations are consistent with a three-chamber radial arrangement at $120^{\circ}$ spacing: valve~1 pulls the tip along $-Y$ and $+Z$, valve~2 along $+X$, and valve~3 along $-X$. The mapping from actuation to pose is therefore clearly non-degenerate, which is the minimal precondition for an inverse-kinematics model to find structure in the dataset.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.6\linewidth]{fig/ds2_correlation.pdf}
+\caption[Actuation--pose correlation matrix for Dataset 2.]{Pearson correlation between each valve command and each tip coordinate across the $18{,}072$ rows of Dataset 2. The strongest per-row entries are consistent with a three-chamber radial actuator whose chambers are spaced at $120^{\circ}$ around the arm axis.}
+\label{fig:ds2_correlation}
+\end{figure}
 
 \section{PCC Analytical Baseline (Exp 1)}
 
