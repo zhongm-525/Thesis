@@ -190,14 +190,93 @@ The combination of a near-zero geometric residual with a $51$\,mm closed-loop er
 \paragraph{Interpretation.}
 Together with the $22$\,mm structural ceiling on Dataset 2 (Section~\ref{sec:res_pcc_single}), this result shows that classical piecewise-constant-curvature inverse kinematics is not competitive with even a small feed-forward network on either of the two datasets used in this thesis. On Dataset 2, the constant-arc-length assumption is the bottleneck. On Dataset 1, that assumption holds well enough---the geometric inverse is essentially exact---but the multi-valued inverse combined with a linear pressure calibration destroys the connection between recovered chamber lengths and the actuation command that produced them. Two-segment PCC therefore serves in the remainder of this thesis as a classical baseline whose failure mode motivates the data-driven approaches of the following sections, rather than as a competitive method in its own right.
 
-\section{MLP IK (Exp 2)}
+\section{Feed-forward neural IK}
+\label{sec:res_mlp}
 
-\subsection{Tip-Only MLP (Exp 2A)}
-% TODO: results on Dataset 1 and Dataset 2.
+Results for the feed-forward networks of Section~\ref{sec:mlp} are reported in two subsections. Section~\ref{sec:res_mlp_tip} gives the tip-only variant on both datasets, and Section~\ref{sec:res_mlp_tipmid} reports the paired ablation that adds the mid-marker input on Dataset 1.
 
-\subsection{Tip + Mid Ablation on Dataset 1 (Exp 2B)}
-% TODO: does mid-marker input reduce error? Expected: yes, due to
-%       two-segment underdetermination.
+\subsection{Tip-only MLP}
+\label{sec:res_mlp_tip}
+
+The tip-only network of Section~\ref{sec:mlp_tip} was trained on each dataset's training split and evaluated on each test split. Table~\ref{tab:res_mlp_tip} summarises the headline test metrics, and Fig~\ref{fig:res_mlp_pred_vs_actual} shows the per-output predicted-versus-actual scatter.
+
+\begin{table}[ht]
+\centering
+\caption[Test metrics of the tip-only feed-forward network.]{Test metrics of the tip-only feed-forward network on Dataset 1 and Dataset 2. The rightmost column repeats the reachable-only single-segment PCC metrics of Section~\ref{sec:res_pcc_single} for comparison on Dataset 2.}
+\label{tab:res_mlp_tip}
+\begin{tabularx}{\linewidth}{@{}l X X X@{}}
+\toprule
+Metric                                   & Dataset 1 MLP & Dataset 2 MLP & Dataset 2 PCC (reachable) \\
+\midrule
+Evaluated targets                        & $11{,}956$    & $2{,}712$     & $1{,}385$                 \\
+Best epoch                               & $4$           & $44$          & ---                       \\
+Pressure MAE (command units)             & $20.13$       & $150.1$       & $285.2$                   \\
+Pressure MAPE                            & $71.3\%$      & $34.4\%$      & $62.0\%$                  \\
+Pressure NMAE                            & $20.1\%$      & $6.0\%$       & $11.4\%$                  \\
+Pressure $R^{2}$                         & $0.323$       & $0.927$       & ---                       \\
+Reachable fraction                       & $100\%$       & $100\%$       & $51\%$                    \\
+Inference time per target (ms)           & $0.08$        & $0.08$        & $0.01$                    \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{fig/mlp_pred_vs_actual.pdf}
+\caption[Predicted versus actual valve/chamber commands for the tip-only network.]{Predicted versus actual valve and chamber commands for the tip-only feed-forward network on the test split of each dataset. Top row: Dataset 2 valves $1$--$3$. Bottom two rows: Dataset 1 chambers $1$--$6$. Diagonal lines mark $\hat{y} = y$; the per-output coefficient of determination is reported in each panel title. The network tracks the Dataset 2 valves tightly across the full command range; on Dataset 1, chambers $2$ and $4$ sit at or below chance predictions ($R^{2} \le 0.04$).}
+\label{fig:res_mlp_pred_vs_actual}
+\end{figure}
+
+\paragraph{Dataset 2: clear improvement over PCC.}
+On Dataset 2 the tip-only network reduced pressure MAE from $285.2$ to $150.1$ command units, a factor of $1.9$ improvement over the reachable-subset single-segment PCC baseline of Section~\ref{sec:res_pcc_single}. MAPE dropped from $62.0\%$ to $34.4\%$, NMAE from $11.4\%$ to $6.0\%$, and the coefficient of determination reached $R^{2} = 0.927$. Per-valve $R^{2}$ values of $0.960$, $0.955$, and $0.867$ (Fig~\ref{fig:res_mlp_pred_vs_actual}, top row) show that the network handles all three valves well, with valve $3$ slightly weaker than the other two. The network also predicted a command for every test target, whereas the PCC baseline had rejected $48.9\%$ of targets as unreachable.
+
+\paragraph{Gap to the Ma et al.\ benchmark.}
+Ma et al.\ \cite{ma2022bp} reported a pressure MAPE below $5\%$ on a similar three-chamber pneumatic arm, using a BP neural network trained on $216$ samples. The tip-only network of this thesis achieves $34.4\%$ MAPE on Dataset 2 with $12{,}650$ training samples, so the gap is not primarily a matter of dataset size. Contributing factors include the undocumented units and zero frame of Dataset 2 (already visible in the Section~\ref{sec:res_pcc_single} frame diagnostic) and the absence of any hysteresis term in a feed-forward architecture. The latter motivates the recurrent models reported in Section~\ref{sec:res_lstm}.
+
+\paragraph{Dataset 1: low $R^{2}$ and an early validation plateau.}
+On Dataset 1 the network achieved pressure MAE $20.13$, MAPE $71.3\%$, NMAE $20.1\%$, and $R^{2} = 0.323$ (Table~\ref{tab:res_mlp_tip}). Early stopping triggered at epoch $4$, indicating that the validation loss plateaued almost immediately and that further training would have risked overfitting. Per-chamber $R^{2}$ values (Fig~\ref{fig:res_mlp_pred_vs_actual}, bottom two rows) are markedly uneven: chambers $1, 3, 5, 6$ sit in the range $0.37$ to $0.60$, while chambers $2$ and $4$ are at or below chance ($R^{2} = -0.03$ and $0.04$ respectively). The combination of a low aggregate $R^{2}$, an early plateau, and two near-chance chambers is consistent with the two-segment inverse being under-determined from the tip alone: multiple pressure configurations can place the end-effector at the same tip, and the network can only learn the training-distribution-averaged configuration. Section~\ref{sec:res_mlp_tipmid} tests whether adding the mid-section marker resolves this ambiguity.
+
+\paragraph{Inference time.}
+Mean single-sample inference time was $0.08$\,ms on the CPU for both datasets. The feed-forward network is about an order of magnitude slower than the single-segment PCC baseline ($0.01$\,ms, Section~\ref{sec:res_pcc_single}), but it remains well under the $5$\,ms budget of a typical $200$\,Hz closed-loop controller.
+
+\subsection{Tip-plus-mid ablation on Dataset 1}
+\label{sec:res_mlp_tipmid}
+
+The tip-plus-mid network of Section~\ref{sec:mlp_tipmid} was trained on the same Dataset 1 training split as the tip-only variant of Section~\ref{sec:res_mlp_tip}, with the only change being the extension of the input to the six-dimensional vector $(x_{\mathrm{tip}}, y_{\mathrm{tip}}, z_{\mathrm{tip}}, x_{\mathrm{mid}}, y_{\mathrm{mid}}, z_{\mathrm{mid}})$. Both variants were then evaluated on the identical set of $11{,}956$ joint-valid test frames.
+
+\paragraph{Aggregate metrics.}
+Adding the mid-marker input reduced pressure MAE from $20.13$ to $17.05$ command units (a $15\%$ reduction), MAPE from $71.3\%$ to $58.4\%$, and raised $R^{2}$ from $0.323$ to $0.437$ (Table~\ref{tab:res_mlp_tipmid}). The best validation epoch rose from $4$ in the tip-only configuration to $21$ in the tip-plus-mid configuration: with a richer input the network continued to extract useful signal for roughly five times as many epochs before the validation loss plateaued.
+
+\begin{table}[ht]
+\centering
+\caption[Tip-only versus tip-plus-mid feed-forward network on Dataset 1.]{Paired comparison of the tip-only and tip-plus-mid feed-forward networks on the $11{,}956$ joint-valid test frames of Dataset 1. Aggregate metrics use the definitions of Section~\ref{sec:metrics}.}
+\label{tab:res_mlp_tipmid}
+\begin{tabularx}{\linewidth}{@{}l X X@{}}
+\toprule
+Metric                                   & Tip-only           & Tip-plus-mid       \\
+\midrule
+Best epoch                               & $4$                & $21$               \\
+Pressure MAE (command units)             & $20.13$            & $17.05$            \\
+Pressure MAPE                            & $71.3\%$           & $58.4\%$           \\
+Pressure NMAE                            & $20.1\%$           & $17.1\%$           \\
+Pressure $R^{2}$                         & $0.323$            & $0.437$            \\
+Per-frame RMSE mean (command units)      & $24.04$            & $21.75$            \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Paired per-frame comparison.}
+Because both networks were evaluated on the identical frames and differed only in the input-feature vector, a paired statistical comparison is available. The tip-plus-mid variant produced a lower per-frame pressure RMSE than the tip-only variant on $62.58\%$ of the $11{,}956$ test frames. The mean of the per-frame RMSE differences (tip-only minus tip-plus-mid) was $+2.29$ command units, with a bootstrap $95\%$ confidence interval of $[+2.15, +2.43]$ that does not cross zero. The two-sided Wilcoxon signed-rank test on the paired differences returned $p \approx 2.4 \times 10^{-211}$, indicating a stable advantage rather than a chance fluctuation. The distribution of per-frame differences is shown in Fig~\ref{fig:res_mlp_paired}: the mass is visibly shifted to the positive side, with a long left tail of frames on which the tip-only variant happened to be better.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{fig/mlp_paired_error_diff.pdf}
+\caption[Per-frame paired RMSE difference: tip-only minus tip-plus-mid.]{Distribution of per-frame pressure-RMSE differences (tip-only minus tip-plus-mid) on the $11{,}956$ joint-valid test frames of Dataset 1. Positive values indicate frames where adding the mid marker reduced the pressure error. The distribution is shifted to the positive side (mean $+2.29$, median $+2.53$ command units), and the Wilcoxon signed-rank test returned $p \approx 2.4 \times 10^{-211}$.}
+\label{fig:res_mlp_paired}
+\end{figure}
+
+\paragraph{Interpretation.}
+The $15\%$ MAE reduction and the highly significant paired test establish that the mid-marker input carries information that the tip position alone does not. In physical terms, the two-segment I-Support arm can place its end-effector at the same tip with multiple combinations of per-segment bending angles, and the mid marker pins down the internal configuration that the tip alone leaves ambiguous. The improvement is substantial and stable, but $R^{2} = 0.437$ remains far below the value achieved on Dataset 2 ($0.927$), suggesting that even tip-plus-mid does not fully resolve the residual sources of error on Dataset 1. Other factors such as random-walk pressure excitation and hysteresis may contribute to what remains, and are examined in the recurrent results of Section~\ref{sec:res_lstm}.
 
 \section{Temporal LSTM IK (Exp 3)}
 % TODO: comparison against MLP; hysteresis analysis.
