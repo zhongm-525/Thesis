@@ -61,22 +61,38 @@ Higher-fidelity modelling is possible with fully three-dimensional finite-elemen
 
 The practical outcome of the trade-off is that PCC remains the standard analytical baseline in soft-robot inverse-kinematics work despite its limitations: it is fast, interpretable, and accurate enough for short single-segment arms where its assumptions approximately hold. Cosserat-rod models enter when gravity, elongation, or nonconstant loading cannot be neglected, and finite-element methods are reserved for design-space studies in which simulation time is not a control-loop constraint. This thesis uses PCC as a classical reference in Section~\ref{sec:pcc_single}, the Sokolov two-segment composition in Section~\ref{sec:pcc_multi}, and a PyElastica Cosserat rod as the basis of the sim-to-real study in Section~\ref{sec:sim_setup}, covering the three regimes of the trade-off in a single experimental programme.
 
-\section{Inverse Kinematics Methods}
+\section{Inverse kinematics methods}
+\label{sec:bg_ik}
 
-\subsection{Analytical IK}
-% TODO: geometric / trigonometric inversion of the PCC model; limitations
-%       when the real robot deviates from the constant-curvature assumption.
+This section reviews the four families of inverse-kinematics method compared in this thesis. Analytical methods invert the kinematic model of Section~\ref{sec:bg_kinematics} directly (Section~\ref{sec:bg_ik_analytical}). Feed-forward learning methods train a regressor from target pose to actuation command (Section~\ref{sec:bg_ik_mlp}). Recurrent learning methods add a temporal window to capture history-dependent effects (Section~\ref{sec:bg_ik_lstm}). Jacobian-learned methods learn the forward map and invert it iteratively at run time (Section~\ref{sec:bg_ik_jacobian}).
 
-\subsection{Feed-Forward Neural IK}
-% TODO: MLP regressors from target pose to actuation; Giorelli et al. and
-%       Ma et al. (2022) as canonical references.
+\subsection{Analytical inverse kinematics}
+\label{sec:bg_ik_analytical}
 
-\subsection{Recurrent and Temporal IK}
-% TODO: LSTM / GRU for hysteresis and history-dependent deformation.
+The analytical route derives the inverse from the closed-form kinematic model of the arm. For a single-segment PCC arm the inverse is itself closed form: given a target tip position, the three configuration parameters $(L, \theta, \varphi)$ can be recovered by direct trigonometric inversion of the arc formula, and the three chamber lengths then follow from the chamber arrangement around the axis \cite{webster2010review}. The extension to multi-section arms is not closed form under composition, but Jones and Walker \cite{jones2006multisection} showed that the forward chain can be inverted iteratively by a Jacobian method that applies standard robot-kinematics techniques to the PCC configuration vector, and this formulation remains the reference analytical baseline for segmented continuum arms. Rucker and Webster \cite{rucker2011statics} subsequently extended the analytical route to a Cosserat-rod formulation with general tendon routing and external loading, which covers the configurations that PCC cannot reach; the cost is a considerably more expensive forward evaluation that does not admit a closed-form inverse.
 
-\subsection{Jacobian-Learned IK}
-% TODO: Fang et al. (2022) damped least-squares scheme with a learned
-%       Jacobian; pros vs. direct regression.
+Giorelli et al.\ \cite{giorelli2015nn} provide the most rigorous empirical comparison of analytical inverse kinematics with its learning-based alternatives on a real soft-arm platform. On a cable-driven soft arm with known parameters, their analytical Jacobian method reached a mean tip error of $15.12$\,mm; the same method degraded rapidly when sub-millimetre manufacturing defects in the cable routing were introduced, with the error roughly tripling at a $0.25$\,mm defect. The implication for the present thesis is that an analytical inverse is competitive only when the physical model is both faithful and accurately calibrated; on the undocumented pneumatic arm of Dataset 2, and on the two-module I-Support arm of Dataset 1 with manufacturing asymmetries of the order of $25$\,mm (Section~\ref{sec:bg_pneumatic_design}), analytical methods are used here as classical reference baselines (Sections~\ref{sec:pcc_single}, \ref{sec:pcc_multi}) rather than as competitive methods.
+
+\subsection{Feed-forward neural inverse kinematics}
+\label{sec:bg_ik_mlp}
+
+Feed-forward neural networks trained to map a target tip position to the corresponding actuation command have become the simplest data-driven alternative to analytical inverse kinematics. Giorelli et al.\ \cite{giorelli2015nn} found that a small fully-connected network with only six hidden units outperformed the analytical Jacobian method on the cable-driven arm discussed above by about a factor of two on mean tip error, and by roughly $2{,}000\times$ on inference time. Ma et al.\ \cite{ma2022bp} reproduced this pattern on a purpose-built three-chamber pneumatic arm and reported a pressure-space mean absolute percentage error below $5\%$ on a $216$-sample dataset, which is used as the scale marker for the Dataset 2 benchmarks of this thesis. Subsequent work has expanded the architecture space to deeper networks on larger datasets, and Kim et al.\ \cite{kim2021mlsoft} review this line of work in their survey of machine-learning approaches to soft-robot control.
+
+The appeal of the feed-forward route is its robustness to model mismatch: the network learns whatever input--output mapping the data exhibits, without requiring a calibrated physical model. Its limitation is that the mapping it learns on a multi-valued inverse is the posterior mean over valid solutions rather than any single solution (Section~\ref{sec:disc_interpretation}). On a two-segment arm the mean prediction may not correspond to any physically realisable configuration, and the feed-forward network then minimises its squared pressure error at the cost of closed-loop position error. This thesis uses the feed-forward network as the primary data-driven inverse (Section~\ref{sec:mlp_tip}) and ablates the effect of adding partial-shape sensing to its input (Section~\ref{sec:mlp_tipmid}).
+
+\subsection{Recurrent and temporal inverse kinematics}
+\label{sec:bg_ik_lstm}
+
+Pneumatic soft actuators exhibit hysteresis, viscoelastic creep, and pneumatic flow delay (Section~\ref{sec:bg_pneumatic_design}), all of which make the pressure-to-pose mapping depend on the recent history of the pressure as well as on its current value. Recurrent neural networks---particularly the long short-term memory (LSTM) architecture introduced by Hochreiter and Schmidhuber \cite{hochreiter1997lstm}---are a standard architectural choice for regression tasks in which history is informative, and they have been adapted to soft-robot control in a growing body of work. Thuruthel et al.\ \cite{thuruthel2019modelbased} used a recurrent forward model as the backbone of a model-based reinforcement-learning controller for a soft manipulator, demonstrating that a learned dynamic model can close the loop around a continuum arm without a pre-specified physical model.
+
+An alternative to recurrent architectures is the use of parametrised hysteresis models such as the Preisach operator and the Bouc-Wen differential equation, which express the history dependence explicitly and can be fitted to measured data. The literature offers mixed results on whether recurrent networks or parametrised hysteresis models give the better inverse on real soft robots; the choice appears to depend on how informative the observable features are about the internal state of the arm. The Dataset 1 results of this thesis (Section~\ref{sec:res_lstm}) and the interpretation of Section~\ref{sec:disc_temporal} provide one data point in this comparison: on a pneumatic two-segment arm, a recurrent network improves over a feed-forward network only when the input features already identify the internal configuration, suggesting that the history-dependent signal is carried by the internal state rather than by the tip trajectory alone.
+
+\subsection{Jacobian-learned inverse kinematics}
+\label{sec:bg_ik_jacobian}
+
+A hybrid route combines a learned forward model with an iterative inverse solver. Fang et al.\ \cite{fang2022jacobian} proposed the Jacobian-learned inverse kinematics scheme that this thesis adopts. A feed-forward network is first trained to predict tip position from actuation command; at inference time, the Jacobian of this forward network is computed by reverse-mode automatic differentiation and used in a damped-least-squares update that iteratively refines the actuation command until the forward-mapped position reaches the target. Because the forward map is single-valued, it is easier to learn than the multi-valued inverse; because the iterative solver commits to a single solution near its initialisation, it does not suffer from the posterior-mean averaging that compromises a direct-regression network on a multi-valued inverse.
+
+The Fang approach is a descendant of the analytical Jacobian iteration of Giorelli et al.\ \cite{giorelli2015nn}, with the analytical model replaced by a learned one. The replacement buys robustness to model mismatch---a network can fit a real soft robot with unmodelled hysteresis and manufacturing asymmetry where an analytical model cannot---at the cost of the forward network's test-set accuracy becoming a ceiling on the iterative inverse (Section~\ref{sec:disc_jacobian_vs_mlp}). Fang et al.'s other contribution, a sim-to-real transfer layer that adapts a simulator-trained network to a small real-data budget, was evaluated in this thesis under the workspace-geometry conditions of Dataset 2 (Section~\ref{sec:res_sim_transfer}) and is revisited in Section~\ref{sec:disc_sim}.
 
 \section{Simulation and Sim-to-Real Transfer}
 
