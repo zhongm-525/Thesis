@@ -111,9 +111,47 @@ The chamber offset was fixed to $d = 12$\,mm, a representative value for the I-S
 \paragraph{Inference and evaluation.}
 At inference, each test tip position was passed through Eqs.~\eqref{eq:pcc_phi}--\eqref{eq:pcc_linear} to produce three predicted valve commands, or an unreachable flag when the target failed the workspace condition. Two groups of errors were reported. On the reachable subset, pressure-space metrics---mean squared error, mean absolute error, mean absolute percentage error on samples with $|V| > 50$, and normalised mean absolute error relative to the full command range---were computed against the ground-truth valve commands. A forward residual was also computed on the reachable subset by inverting Eq.~\eqref{eq:pcc_linear} to recover chamber lengths from the predicted commands, inverting Eq.~\eqref{eq:pcc_lengths} to recover the configuration $(\theta, \varphi, L)$, and finally applying the closed-form PCC forward kinematics to obtain a reconstructed tip position; the Euclidean distance between the reconstructed and the target tip position was reported as the forward residual. For the full test set, a penalised mean was also reported, in which unreachable samples were assigned an error equal to the workspace diameter estimated from the training tip positions. The penalised mean provides a conservative upper bound that can be compared against downstream methods without over-crediting PCC on its favourable subset.
 
-\subsection{Two-Segment PCC (Exp 1B, Dataset 1 --- stretch goal)}
-% TODO: compound PCC + SQP optimisation (see
-%       docs/references/multi_segment_pcc.md).
+\subsection{Two-Segment PCC (Exp 1B, Dataset 1)}
+\label{sec:pcc_multi}
+
+The I-Support manipulator (Section~\ref{sec:ds1}) consists of two PCC-like modules stacked in series, which the single-segment model of Section~\ref{sec:pcc_single} cannot represent. A two-segment extension was implemented following Sokolov et al.\ \cite{sokolov2024twoseg}, who compose two single-segment PCC transforms with a $60^{\circ}$ inter-segment offset that matches the I-Support geometry exactly. No closed-form inverse exists for the compound model; the inverse was therefore solved numerically as an optimisation problem, following the formulation of Keyvanara et al.\ \cite{keyvanara2023geometric}.
+
+\paragraph{Forward kinematics.}
+Each segment $s \in \{1, 2\}$ was parameterised by its bending angle $\theta_s$, bending-plane azimuth $\varphi_s$, and elongation $\Delta L_s$ from a nominal rest length $L_s^{(0)} = 205$\,mm \cite{manti2016soft}. The segment arc length was $L_s = L_s^{(0)} + \Delta L_s$. The local transform from the base of segment $s$ to its tip is a displacement
+\begin{equation}
+  \mathbf{t}_s = \frac{L_s}{\theta_s} \begin{pmatrix} (1 - \cos\theta_s) \cos\varphi_s \\ (1 - \cos\theta_s) \sin\varphi_s \\ \sin\theta_s \end{pmatrix},
+  \label{eq:pcc_multi_segment_tip}
+\end{equation}
+combined with a rotation $\mathbf{R}_s$ by $\theta_s$ about the axis $(-\sin\varphi_s,\, \cos\varphi_s,\, 0)$, which is the normal to the bending plane. The limit $\theta_s \to 0$ corresponds to a straight-pose translation by $L_s$ along $+z$.
+
+The compound tip position was obtained by chaining the two segment transforms with a fixed rotation about the local $z$-axis between them, matching the I-Support inter-segment offset:
+\begin{equation}
+  \mathbf{p}_{\mathrm{tip}} = \mathbf{t}_1 + \mathbf{R}_1 \, \mathbf{R}_z(\pi/3) \, \mathbf{t}_2, \label{eq:pcc_multi_fk}
+\end{equation}
+where $\mathbf{R}_z(\pi/3)$ denotes the rotation matrix about $z$ by $60^{\circ}$.
+
+\paragraph{Frame convention.}
+Dataset 1's base-relative frame places the robot's rest pose along $-z$ (the arm hangs downward; Section~\ref{sec:ds1}), whereas Eq.~\eqref{eq:pcc_multi_segment_tip} assumes a rest pose along $+z$. Target tip positions were therefore reflected across the $z$-axis before being passed to the inverse kinematics, and reconstructed tips were reflected back before error evaluation.
+
+\paragraph{Inverse kinematics.}
+The configuration $\boldsymbol{\xi} = (\theta_1, \varphi_1, \Delta L_1, \theta_2, \varphi_2, \Delta L_2)^{\top}$ is not uniquely determined by the three-dimensional tip, so the inverse was formulated as a box-constrained least-squares optimisation \cite{keyvanara2023geometric},
+\begin{equation}
+  \min_{\boldsymbol{\xi} \in \mathcal{B}} \; \left\| \mathbf{p}_{\mathrm{target}} - \mathbf{p}_{\mathrm{tip}}(\boldsymbol{\xi}) \right\|^{2}_{2}, \label{eq:pcc_multi_ik}
+\end{equation}
+where $\mathcal{B}$ is the product of per-parameter bounds: $\theta_s \in [0, 2.5]$\,rad, $\varphi_s \in [-\pi, \pi]$, and $\Delta L_s \in [-50, 50]$\,mm per segment. The bending bound exceeds the single-chamber maximum of approximately 2\,rad reported for the I-Support platform \cite{manti2016soft}; the elongation bound was kept conservative to restrict the feasible configuration space to the expected operating envelope. Eq.~\eqref{eq:pcc_multi_ik} was solved by the SLSQP algorithm, with a slight-bend initialisation $(\theta_1, \theta_2) = (0.1,\, 0.1)$\,rad and all other parameters zero, chosen to avoid the $\theta = 0$ singularity of Eq.~\eqref{eq:pcc_multi_segment_tip}.
+
+\paragraph{Warm-starting along a recording.}
+The solver returns a single local optimum, and the multi-valued nature of the inverse means that different initialisations can converge to different solution branches. Within each recording, the solver therefore initialised frame $k$ from the solution of frame $k-1$, following the trajectory-continuity protocol of Keyvanara et al.\ \cite{keyvanara2023geometric}. Warm-starting was reset at recording boundaries.
+
+\paragraph{Chamber lengths and pressure calibration.}
+For each segment, the configuration $(\theta_s, \varphi_s, L_s)$ was mapped to three chamber lengths by Eq.~\eqref{eq:pcc_lengths}, giving six chamber lengths $(\ell_1, \ldots, \ell_6)$ per frame. A per-chamber linear fit, analogous to Eq.~\eqref{eq:pcc_linear} but with six chambers,
+\begin{equation}
+  V_i = a_i \, (\ell_i - L_0) + b_i, \qquad i = 1, \ldots, 6, \label{eq:pcc_multi_linear}
+\end{equation}
+mapped chamber lengths to the recorded pressure commands. The reference length was set to $L_0 = 205$\,mm for every chamber. The coefficients $(a_i, b_i)$ were fitted on the training split by ordinary least squares, using chamber lengths recovered from the training targets through Eqs.~\eqref{eq:pcc_multi_ik}--\eqref{eq:pcc_lengths}.
+
+\paragraph{Evaluation.}
+Each test target was passed through Eqs.~\eqref{eq:pcc_multi_ik}--\eqref{eq:pcc_multi_linear} to produce a predicted six-chamber pressure vector. Two families of metrics were reported. First, pressure-space errors---mean absolute error, mean absolute percentage error, and the coefficient of determination $R^{2}$---were computed against the ground-truth commands. Second, a closed-loop position error was obtained by passing the predicted pressures back through the forward map (Eq.~\eqref{eq:pcc_multi_fk}) and measuring the Euclidean distance between the reconstructed and target tips. The geometric IK residual, defined as the SLSQP objective at convergence before the pressure calibration, was also recorded, so that the geometric-fit quality can be separated from the calibration quality.
 
 \section{Feed-Forward Neural IK}
 
