@@ -1,15 +1,72 @@
-% References for the thesis.
-% TODO: populate with citations for:
-%   - Ma et al. (2022) IEEE Access — target to surpass
-%   - Manti et al. (2016) I-Support physical parameters
-%   - Giorelli et al. — NN IK baseline
-%   - Fang et al. (2022) — Jacobian-learned IK (DLS)
-%   - Ståhl-style FEM / PyElastica references
-% Minimal placeholder below so `biber` runs without error:
+% Thesis bibliography.
+% Entries drawn from the author's Zotero library. Year fields for Fang 2022
+% and Webster 2010 were repaired from "MM/YYYY" truncation in the Zotero
+% export; Bianchi 2023 year was corrected from the Zotero record's "2026"
+% (which reflected the add-date, not the publication date) to 2023 based on
+% the SciTePress DOI 10.5220/0012184200003543 (ICINCO 2023).
 
-@misc{placeholder_ref,
-  author = {{TODO}},
-  title  = {Placeholder reference --- replace before compiling final},
-  year   = {2026},
-  note   = {Remove once real entries are added.}
+@inproceedings{manti2016soft,
+  author    = {Manti, M. and Pratesi, A. and Falotico, E. and Cianchetti, M. and Laschi, C.},
+  title     = {Soft Assistive Robot for Personal Care of Elderly People},
+  booktitle = {2016 6th IEEE International Conference on Biomedical Robotics and Biomechatronics (BioRob)},
+  year      = {2016},
+  pages     = {833--838},
+  doi       = {10.1109/BIOROB.2016.7523731},
+  url       = {https://ieeexplore.ieee.org/document/7523731}
+}
+
+@inproceedings{bianchi2023learning,
+  author    = {Bianchi, Diego and Antonelli, Michele and Laschi, Cecilia and Sabatini, Angelo and Falotico, Egidio},
+  title     = {Learning-Based Inverse Dynamic Controller for Throwing Tasks with a Soft Robotic Arm},
+  booktitle = {Proceedings of the 20th International Conference on Informatics in Control, Automation and Robotics (ICINCO)},
+  year      = {2023},
+  pages     = {424--432},
+  doi       = {10.5220/0012184200003543}
+}
+
+@article{ma2022bp,
+  author  = {Ma, Huichen and Zhou, Junjie and Zhang, Jian and Zhang, Lingyu},
+  title   = {Research on the Inverse Kinematics Prediction of a Soft Biomimetic Actuator via {BP} Neural Network},
+  journal = {IEEE Access},
+  volume  = {10},
+  pages   = {78691--78701},
+  year    = {2022},
+  doi     = {10.1109/ACCESS.2022.3194153},
+  url     = {https://ieeexplore.ieee.org/document/9841546}
+}
+
+@article{fang2022jacobian,
+  author  = {Fang, Guoxin and Tian, Yingjun and Yang, Zhi-Xin and Geraedts, Jo M. P. and Wang, Charlie C. L.},
+  title   = {Efficient {J}acobian-Based Inverse Kinematics with Sim-to-Real Transfer of Soft Robots by Learning},
+  journal = {IEEE/ASME Transactions on Mechatronics},
+  volume  = {27},
+  number  = {6},
+  pages   = {5296--5306},
+  year    = {2022},
+  doi     = {10.1109/TMECH.2022.3178303},
+  url     = {https://ieeexplore.ieee.org/document/9790339}
+}
+
+@article{giorelli2015nn,
+  author  = {Giorelli, Michele and Renda, Federico and Calisti, Marcello and Arienti, Andrea and Ferri, Gabriele and Laschi, Cecilia},
+  title   = {Neural Network and {J}acobian Method for Solving the Inverse Statics of a Cable-Driven Soft Arm with Nonconstant Curvature},
+  journal = {IEEE Transactions on Robotics},
+  volume  = {31},
+  number  = {4},
+  pages   = {823--834},
+  year    = {2015},
+  doi     = {10.1109/TRO.2015.2428511},
+  url     = {https://ieeexplore.ieee.org/document/7112506}
+}
+
+@article{webster2010review,
+  author  = {Webster, Robert J. and Jones, Bryan A.},
+  title   = {Design and Kinematic Modeling of Constant Curvature Continuum Robots: A Review},
+  journal = {The International Journal of Robotics Research},
+  volume  = {29},
+  number  = {13},
+  pages   = {1661--1683},
+  year    = {2010},
+  doi     = {10.1177/0278364910368147},
+  url     = {https://journals.sagepub.com/doi/10.1177/0278364910368147}
 }
