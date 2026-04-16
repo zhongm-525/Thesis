@@ -291,9 +291,73 @@ The window length $K$ trades coverage of past frames against overfitting risk (a
 \paragraph{Evaluation.}
 The test-set metrics reported for the recurrent variants were the same four as for the MLPs (MAE, MAPE, NMAE, and $R^{2}$, defined in Section~\ref{sec:mlp_tip}). To enable a fair paired comparison with the feed-forward networks, every recurrent-model report on a given dataset was evaluated on the same rows as the corresponding feed-forward report, which required the first $K-1$ frames of each test segment to be dropped from both. The feed-forward predictions used in the paired comparison were recomputed on this reduced set, so that any difference in the reported metrics reflects the change of model class rather than a change in the test population.
 
-\section{Jacobian-Learned IK (Exp 4)}
-% TODO: learned-Jacobian + damped least-squares update rule from
-%       Fang et al. (2022); see docs/references/jacobian_ik_algo.md.
+\section{Jacobian-Learned IK}
+\label{sec:jacobian}
+
+Direct regression from tip to pressure (Section~\ref{sec:mlp}) collapses multiple valid solution branches into a single averaged output, which lowers the reported mean pressure error but can drive the tip away from the target when the prediction is fed back to the forward map. A Jacobian-based alternative avoids the averaging by learning only the forward map (pressure $\to$ tip position) and inverting it iteratively at run time; each target commits to a single solution near its initialisation rather than blending several solution branches. The approach follows Fang et al.\ \cite{fang2022jacobian}, who proposed this scheme as an efficient IK solver for soft robots with sim-to-real transfer.
+
+\paragraph{Forward-kinematics network.}
+A feed-forward network $f_{\theta}: \mathbb{R}^{n_p} \to \mathbb{R}^{3}$ was trained to predict the base-relative tip position from the actuation command, where $n_p = 3$ for Dataset 2 and $n_p = 6$ for Dataset 1. The architecture (four hidden layers with ReLU activations), hidden widths, and training protocol were inherited unchanged from the feed-forward inverse-kinematics networks of Section~\ref{sec:mlp_tip}; only the input and output roles were swapped. Table~\ref{tab:fk_config} lists the per-dataset dimensions and parameter counts. The network was trained in isolation and its weights were frozen for the entire inverse-kinematics iteration; joint training of the forward and inverse models would collapse the benefit of the two-stage design \cite{fang2022jacobian}.
+
+\begin{table}[ht]
+\centering
+\caption[Forward-kinematics network configurations.]{Forward-kinematics networks used by the Jacobian-learned inverse kinematics. The training protocol is inherited from the feed-forward inverse-kinematics networks of Section~\ref{sec:mlp_tip} (MSE loss on standardised outputs, Adam at learning rate $10^{-3}$, batch size $64$, up to $500$ epochs with early stopping on the validation loss after $30$ epochs without improvement, and random seed $42$).}
+\label{tab:fk_config}
+\begin{tabularx}{\linewidth}{@{}l X X@{}}
+\toprule
+                      & Dataset 1                       & Dataset 2                     \\
+\midrule
+Input                 & 6 chamber pressures             & 3 valve commands              \\
+Output                & tip $(x, y, z)$, mm             & tip $(x, y, z)$, mm           \\
+Input dim $n_p$       & 6                               & 3                             \\
+Output dim            & 3                               & 3                             \\
+Hidden widths         & $[128, 256, 256, 128]$          & $[64, 128, 128, 64]$          \\
+Trainable parameters  & $132{,}995$                     & $33{,}539$                    \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Iterative inverse.}
+Given a target tip position $\mathbf{x}^{*} \in \mathbb{R}^{3}$ and a current pressure estimate $\mathbf{p}_k \in \mathbb{R}^{n_p}$, the iterate was updated by
+\begin{align}
+  \mathbf{x}_k            &= f_{\theta}(\mathbf{p}_k), \label{eq:jac_forward} \\
+  \mathbf{e}_k            &= \mathbf{x}^{*} - \mathbf{x}_k, \label{eq:jac_err} \\
+  \mathbf{J}_k            &= \left.\frac{\partial f_{\theta}}{\partial \mathbf{p}}\right|_{\mathbf{p}_k}, \label{eq:jac_def} \\
+  \Delta \mathbf{p}_k     &= \mathbf{J}_k^{\top} \bigl( \mathbf{J}_k \mathbf{J}_k^{\top} + \lambda^{2} \mathbf{I}_{3} \bigr)^{-1} \mathbf{e}_k, \label{eq:dls_step} \\
+  \mathbf{p}_{k+1}        &= \mathbf{p}_k + \alpha \, \Delta \mathbf{p}_k. \label{eq:dls_update}
+\end{align}
+Equation~\eqref{eq:dls_step} is the damped least-squares (DLS) step written in its dual form, which is numerically stabler than the primal form when $n_p \ge 3$. The damping term $\lambda^{2} \mathbf{I}_{3}$ regularises the update near configurations where $\mathbf{J}_k$ is rank-deficient, at the cost of a slower step in well-conditioned regions. The step size $\alpha$ scales the Newton-like direction and stabilises iteration when $f_{\theta}$ is strongly nonlinear. The Jacobian $\mathbf{J}_k$ of size $3 \times n_p$ was computed by reverse-mode automatic differentiation of the frozen FK network at each iterate. The iteration was carried out in the standardised input/output space of the FK network, but convergence and divergence were evaluated in physical millimetres so that the reported tolerance is directly comparable to the error metrics of the other baselines.
+
+The damping coefficient was set to $\lambda = 0.05$, the step size to $\alpha = 0.5$, the convergence tolerance to $1$\,mm on the Euclidean tip error, the iteration cap to $50$, and the divergence criterion to a $5$-fold increase of the current error over the initial error. Algorithm~\ref{alg:jacobian_ik} summarises the full procedure.
+
+\begin{algorithm}[ht]
+\caption{Jacobian-learned inverse kinematics for one target.}
+\label{alg:jacobian_ik}
+\begin{algorithmic}[1]
+\Require Trained FK $f_{\theta}$; target $\mathbf{x}^{*}$; initial pressure $\mathbf{p}_0$; parameters $\alpha$, $\lambda$, tolerance $\tau$, maximum iterations $K$, divergence factor $\rho$.
+\State $\mathbf{p} \gets \mathbf{p}_0$; \quad $e_0 \gets \| \mathbf{x}^{*} - f_{\theta}(\mathbf{p}_0) \|$
+\For{$k = 0, 1, \ldots, K - 1$}
+  \State $\mathbf{x}_k \gets f_{\theta}(\mathbf{p})$
+  \State $\mathbf{e}_k \gets \mathbf{x}^{*} - \mathbf{x}_k$
+  \If{$\| \mathbf{e}_k \| < \tau$}
+    \State \Return $\mathbf{p}$ (converged)
+  \EndIf
+  \If{$\| \mathbf{e}_k \| > \rho \cdot e_0$}
+    \State \Return $\mathbf{p}$ (diverged)
+  \EndIf
+  \State $\mathbf{J}_k \gets \partial f_{\theta} / \partial \mathbf{p}$ at $\mathbf{p}$
+  \State $\Delta \mathbf{p} \gets \mathbf{J}_k^{\top} (\mathbf{J}_k \mathbf{J}_k^{\top} + \lambda^{2} \mathbf{I}_3)^{-1} \mathbf{e}_k$
+  \State $\mathbf{p} \gets \mathbf{p} + \alpha \, \Delta \mathbf{p}$
+\EndFor
+\State \Return $\mathbf{p}$ (did not converge)
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Initialisation.}
+The choice of initial pressure $\mathbf{p}_0$ influences both the convergence rate and the solution branch to which the iterate commits. Three strategies were compared. The \emph{zero} strategy sets $\mathbf{p}_0 = \mathbf{0}$ and provides a dataset-agnostic baseline. The \emph{MLP warm-start} strategy takes $\mathbf{p}_0$ from the prediction of the direct-IK feed-forward network of Section~\ref{sec:mlp_tip}, so the iteration begins close to the plausible solution already identified by the regressor. The \emph{nearest-neighbour} strategy uses the ground-truth pressure of the training frame whose recorded tip position is closest to the test target in Euclidean distance. All three strategies were evaluated with identical values of $\alpha$, $\lambda$, tolerance, and iteration cap; the MLP warm-start was adopted as the primary configuration for the headline comparison against the other baselines.
+
+\paragraph{Evaluation.}
+Two classes of metrics were reported. The primary metric is the \emph{closed-loop position error}, defined as the Euclidean distance $\| \mathbf{x}^{*} - f_{\theta}(\mathbf{p}_{\mathrm{final}}) \|$ in millimetres between the target and the forward-evaluated prediction; this measures how well the predicted pressures drive the (learned) robot toward the target. The secondary metrics are the pressure-space errors against the ground-truth commands (MAE, MAPE, $R^{2}$, with the definitions of Section~\ref{sec:mlp_tip}). On a multi-valued inverse-kinematics problem the two classes need not agree, and both are reported so that the trade-off can be examined in Chapter~\ref{chap:results}. Convergence statistics---the fraction of targets that reached the $1$\,mm tolerance, the mean and $95$th-percentile iteration count, and the wall-clock time per target---were also recorded, so that accuracy and runtime can be compared head-to-head against the feed-forward baselines.
 
 \section{Simulation and Sim-to-Real with PyElastica (Exp 5)}
 
