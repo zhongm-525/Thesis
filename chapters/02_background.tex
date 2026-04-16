@@ -1,0 +1,76 @@
+\chapter{Background and Literature Review}
+\label{chap:background}
+
+% TODO: bridging paragraph introducing the three pillars surveyed in this
+%       chapter: (i) soft-robot modelling, (ii) learning-based IK, (iii)
+%       simulation and sim-to-real transfer.
+
+\section{Pneumatic Soft Manipulators}
+
+\subsection{Design and Actuation Principles}
+% TODO: silicone chambers, fibre reinforcement, pressure-driven bending.
+
+\subsection{The I-Support Platform}
+% TODO: describe the I-Support manipulator (two modules, six chambers, nine
+%       markers) used as the basis for DS1. Cite Manti et al. (2016).
+
+\subsection{Other Pneumatic Platforms Relevant to this Work}
+% TODO: platforms matching DS2 style (3-chamber / 3-valve single-segment
+%       arms) and the Ma et al. (2022) 3-chamber arm we aim to surpass.
+
+\section{Kinematic Modelling of Soft Robots}
+
+\subsection{Piecewise Constant Curvature (PCC)}
+% TODO: arc parameters (kappa, phi, L), constant-curvature assumption,
+%       closed-form FK / IK for a single segment.
+
+\subsection{Multi-Segment Extensions}
+% TODO: composition of multiple PCC segments, redundancy, SQP-style
+%       optimisation for two-segment IK.
+
+\subsection{Beyond PCC: Cosserat Rod and FEM Approaches}
+% TODO: brief survey (PyElastica, SOFA) and why PCC remains the standard
+%       analytical baseline.
+
+\section{Inverse Kinematics Methods}
+
+\subsection{Analytical IK}
+% TODO: geometric / trigonometric inversion of the PCC model; limitations
+%       when the real robot deviates from the constant-curvature assumption.
+
+\subsection{Feed-Forward Neural IK}
+% TODO: MLP regressors from target pose to actuation; Giorelli et al. and
+%       Ma et al. (2022) as canonical references.
+
+\subsection{Recurrent and Temporal IK}
+% TODO: LSTM / GRU for hysteresis and history-dependent deformation.
+
+\subsection{Jacobian-Learned IK}
+% TODO: Fang et al. (2022) damped least-squares scheme with a learned
+%       Jacobian; pros vs. direct regression.
+
+\section{Simulation and Sim-to-Real Transfer}
+
+\subsection{PyElastica for Soft-Robot Simulation}
+% TODO: Cosserat-rod formulation, pneumatic actuation modelling.
+
+\subsection{Sim-to-Real Strategies}
+% TODO: domain randomisation, residual learning, fine-tuning; applicability
+%       to pneumatic soft arms.
+
+\section{Evaluation Metrics and Benchmarks}
+
+\subsection{Pose Error Metrics}
+% TODO: MAE / RMSE / MAPE of tip position; percentage of workspace diameter.
+
+\subsection{Trajectory Tracking Metrics}
+% TODO: path-following error, smoothness, actuation effort.
+
+\subsection{Published Baselines}
+% TODO: headline numbers from Ma et al. (2022), Giorelli et al., Fang et al.
+%       as the bar to clear.
+
+\section{Summary and Research Gap}
+% TODO: state the gap this thesis fills: a head-to-head comparison of
+%       analytical, MLP, LSTM and Jacobian-learned IK on identical data,
+%       plus a PyElastica sim-to-real study.

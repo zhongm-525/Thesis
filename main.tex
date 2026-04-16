@@ -1,0 +1,121 @@
+% =============================================================================
+%  BEng Thesis — Data-Driven Inverse Kinematics for Pneumatic Soft Robots
+%  Skeleton only: chapter/section structure, no detailed content yet.
+%  Format follows BEng Thesis Handbook 2025-2026.
+% =============================================================================
+
+\documentclass[12pt,a4paper,oneside]{report}
+\usepackage[left=40mm,top=20mm,right=20mm,bottom=20mm]{geometry}
+
+\usepackage{times}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{svg-extract}
+\usepackage[justification=raggedright,singlelinecheck=false]{caption}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{microtype}
+\usepackage{ragged2e}
+\usepackage{hyperref}
+\usepackage{CJKutf8}
+\usepackage[backend=bibtex,style=numeric,sorting=none]{biblatex}
+
+\addbibresource{ref.bib}
+\newcommand{\comment}[1]{}
+\onehalfspacing
+
+% --- Paragraph formatting (handbook: blank line between paragraphs, no indent) ---
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1\baselineskip plus 2pt minus 1pt}
+
+% --- Footnotes in single spacing (handbook requirement) ---
+\let\oldfootnote\footnote
+\renewcommand{\footnote}[1]{\oldfootnote{\begin{singlespace}#1\end{singlespace}}}
+
+% --- Chapter heading: 14 pt, centred, bold, block capitals (handbook §2.5) ---
+%     2 double-spaced lines (~36 pt at 1.5 spacing × 12 pt) before text
+\titleformat{\chapter}[display]
+  {\normalfont\large\bfseries\centering}
+  {\MakeUppercase{CHAPTER \thechapter}}
+  {1em}
+  {\MakeUppercase}
+\titlespacing*{\chapter}{0pt}{50pt}{36pt}
+
+% --- Section heading: 12 pt, left, bold, block capitals (handbook §2.6) ---
+\titleformat{\section}
+  {\normalfont\bfseries}
+  {\thesection}
+  {1em}
+  {\MakeUppercase}
+\titlespacing*{\section}{0pt}{3.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
+
+% --- Subsection heading: 12 pt, left, bold, lower case (handbook §2.6) ---
+\titleformat{\subsection}
+  {\normalfont\bfseries}
+  {\thesubsection}
+  {1em}
+  {}
+\titlespacing*{\subsection}{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+% --- Page numbers centred at foot (handbook §2.3) ---
+\pagestyle{plain}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+\graphicspath{{fig/}}
+
+\begin{document}
+
+% ---------- Front matter (roman page numbers) ----------
+\pagenumbering{roman}
+
+\input{frontmatter/titlepage}
+\input{frontmatter/abstract}
+\input{frontmatter/declaration}
+\input{frontmatter/acknowledgments}
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+\input{frontmatter/abbreviations}
+
+% ---------- Main matter (arabic page numbers) ----------
+\pagenumbering{arabic}
+
+\input{chapters/01_introduction}
+\input{chapters/02_background}
+\input{chapters/03_methods}
+\input{chapters/04_results}
+\input{chapters/05_discussion}
+\input{chapters/06_conclusion}
+\input{chapters/07_future_work}
+
+% ---------- Word count (handbook §8.9: must be included) ----------
+\vfill
+\noindent\textbf{Word count:} TODO
+
+% ---------- References ----------
+\sloppy
+\printbibliography[title={References}]
+
+% ---------- Appendices (handbook: each numbered with a suitable title) ----------
+\appendix
+\input{chapters/appendix_A_supervision}
+\input{chapters/appendix_B_risk}
+\input{chapters/appendix_C_project_plan}
+\input{chapters/appendix_D_ethics}
+\input{chapters/appendix_E_derivations}
+\input{chapters/appendix_F_extended}
+\input{chapters/appendix_G_code}
+
+\end{document}

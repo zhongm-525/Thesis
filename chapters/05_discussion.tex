@@ -1,0 +1,43 @@
+\chapter{Discussion}
+\label{chap:discussion}
+
+\section{Interpretation of Results}
+% TODO: pull together the findings: which IK family wins where, and why?
+
+\section{Comparison with Published Baselines}
+% TODO: explicit comparison with Ma et al. (2022) (MAPE~<5\%) and other
+%       benchmarks from docs/references/giorelli_nn_vs_jacobian.md.
+
+\section{The Role of Mid-Segment Information (DS1)}
+% TODO: discuss why tip-only IK is underdetermined for two-segment arms
+%       and what this implies for sensing requirements.
+
+\section{Temporal Modelling and Hysteresis}
+% TODO: when does LSTM help, when not; limits of the tested sequence
+%       lengths.
+
+\section{Jacobian vs. Direct Regression}
+% TODO: generalisation, sample efficiency, robustness to out-of-distribution
+%       targets.
+
+\section{Sim-to-Real Observations}
+% TODO: what transfers, what does not; the reality gap for pneumatic
+%       actuation dynamics.
+
+\section{Limitations}
+
+\subsection{No Physical Robot}
+% TODO: all evaluation is on pre-recorded datasets; no closed-loop testing.
+
+\subsection{Dataset Coverage}
+% TODO: two datasets, two geometries; broader generalisation unverified.
+
+\subsection{Simulator Fidelity}
+% TODO: PyElastica limitations (no air dynamics, simplified hysteresis).
+
+\subsection{Metric Choice}
+% TODO: tip-only error ignores shape; implications for downstream use.
+
+\section{Implications}
+% TODO: practical take-aways for practitioners choosing an IK strategy
+%       for a new pneumatic soft arm.

@@ -1,0 +1,75 @@
+\chapter{Materials and Methods}
+\label{chap:methods}
+
+% TODO: bridging paragraph outlining the experimental programme (Exp 0--6
+%       from the project plan).
+
+\section{Datasets}
+
+\subsection{DS1 --- I-Support (20\,Hz)}
+% TODO: 2-module / 6-chamber robot, 9 optical markers, 20\,Hz random-walk
+%       pressure excitation, seeds 0--3, pickle layout (N x (27 + 6)).
+
+\subsection{DS2 --- R01 recordings}
+% TODO: single-segment, 3 valves (V1..V3), (X,Y,Z) in inches; 18{,}072
+%       rows, likely time-series, units conversion.
+
+\subsection{Data Splits and Preprocessing}
+% TODO: DS1: split by seed (1,2 train / 3 val / 0x3 test); base-relative
+%       tip coordinates (and mid for ablation); scaler persistence.
+% TODO: DS2: temporal 70/15/15 split, NEVER shuffle.
+
+\section{Exploratory Data Analysis (Exp 0)}
+% TODO: workspace shape, marker-occlusion rate, time-series verification
+%       for DS2, pressure--tip correlation.
+
+\section{Analytical Baseline: PCC Inverse Kinematics}
+
+\subsection{Single-Segment PCC (Exp 1A, DS2)}
+% TODO: equations from Ma et al. (2022) eq. 11--21 (see
+%       docs/references/pcc_equations.md).
+
+\subsection{Two-Segment PCC (Exp 1B, DS1 --- stretch goal)}
+% TODO: compound PCC + SQP optimisation (see
+%       docs/references/multi_segment_pcc.md).
+
+\section{Feed-Forward Neural IK}
+
+\subsection{MLP Architecture (Exp 2A, Tip-Only)}
+% TODO: inputs (X,Y,Z), hidden layers, activation, outputs = pressures.
+
+\subsection{Tip + Mid Ablation (Exp 2B, DS1)}
+% TODO: augment inputs with mid-segment marker mean; motivation: the
+%       two-segment arm is underdetermined from tip alone.
+
+\section{Temporal IK with LSTM (Exp 3)}
+% TODO: windowing strategy, sequence length, stateful vs. stateless,
+%       expected benefit on hysteresis.
+
+\section{Jacobian-Learned IK (Exp 4)}
+% TODO: learned-Jacobian + damped least-squares update rule from
+%       Fang et al. (2022); see docs/references/jacobian_ik_algo.md.
+
+\section{Simulation and Sim-to-Real with PyElastica (Exp 5)}
+
+\subsection{Simulator Setup}
+% TODO: Cosserat rod params from Manti 2016; pneumatic actuation model.
+
+\subsection{Sim-to-Real Transfer Protocol}
+% TODO: pre-train on synthetic, fine-tune on real DS2; evaluation protocol.
+
+\section{Trajectory Tracking Evaluation (Exp 6)}
+% TODO: unified protocol (figure-of-eight, circle, random) applied to
+%       every IK method.
+
+\section{Training Setup and Evaluation}
+
+\subsection{Hardware, Software and Reproducibility}
+% TODO: GPU, PyTorch version, seed = 42, checkpoint metadata layout.
+
+\subsection{Hyperparameter Selection}
+% TODO: validation-set driven search; never touch the test set.
+
+\subsection{Metrics}
+% TODO: MAE / RMSE / MAPE of tip position, trajectory error, inference
+%       latency.

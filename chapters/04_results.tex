@@ -1,0 +1,46 @@
+\chapter{Results}
+\label{chap:results}
+
+% TODO: bridging paragraph: all experiments reported against identical
+%       splits; headline comparison table appears in Section \ref{sec:overall}.
+
+\section{Data Exploration Findings (Exp 0)}
+% TODO: workspace plots, occlusion statistics, DS2 time-series confirmation.
+
+\section{PCC Analytical Baseline (Exp 1)}
+
+\subsection{Single-Segment PCC on DS2 (Exp 1A)}
+% TODO: error distribution, failure modes.
+
+\subsection{Two-Segment PCC on DS1 (Exp 1B, if attempted)}
+% TODO: note whether the stretch goal was pursued.
+
+\section{MLP IK (Exp 2)}
+
+\subsection{Tip-Only MLP (Exp 2A)}
+% TODO: results on DS1 and DS2.
+
+\subsection{Tip + Mid Ablation on DS1 (Exp 2B)}
+% TODO: does mid-marker input reduce error? Expected: yes, due to
+%       two-segment underdetermination.
+
+\section{Temporal LSTM IK (Exp 3)}
+% TODO: comparison against MLP; hysteresis analysis.
+
+\section{Jacobian-Learned IK (Exp 4)}
+% TODO: convergence behaviour, final tip error, robustness.
+
+\section{Sim-to-Real with PyElastica (Exp 5)}
+% TODO: sim-only baseline vs. fine-tuned on real DS2.
+
+\section{Trajectory Tracking (Exp 6)}
+% TODO: uniform protocol, path-following error, actuation smoothness.
+
+\section{Overall Comparison}
+\label{sec:overall}
+% TODO: master table (MAE / RMSE / MAPE per method per dataset) and a
+%       one-paragraph commentary on the best-performing method.
+
+\section{Ablation Studies}
+% TODO: mid-marker ablation, sequence length, damping factor for DLS,
+%       simulator fine-tune ratio.
