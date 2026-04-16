@@ -359,13 +359,104 @@ The choice of initial pressure $\mathbf{p}_0$ influences both the convergence ra
 \paragraph{Evaluation.}
 Two classes of metrics were reported. The primary metric is the \emph{closed-loop position error}, defined as the Euclidean distance $\| \mathbf{x}^{*} - f_{\theta}(\mathbf{p}_{\mathrm{final}}) \|$ in millimetres between the target and the forward-evaluated prediction; this measures how well the predicted pressures drive the (learned) robot toward the target. The secondary metrics are the pressure-space errors against the ground-truth commands (MAE, MAPE, $R^{2}$, with the definitions of Section~\ref{sec:mlp_tip}). On a multi-valued inverse-kinematics problem the two classes need not agree, and both are reported so that the trade-off can be examined in Chapter~\ref{chap:results}. Convergence statistics---the fraction of targets that reached the $1$\,mm tolerance, the mean and $95$th-percentile iteration count, and the wall-clock time per target---were also recorded, so that accuracy and runtime can be compared head-to-head against the feed-forward baselines.
 
-\section{Simulation and Sim-to-Real with PyElastica (Exp 5)}
+\section{Simulation and Sim-to-Real with PyElastica}
+\label{sec:sim}
 
-\subsection{Simulator Setup}
-% TODO: Cosserat rod params from Manti 2016; pneumatic actuation model.
+Dataset 2's source robot has no documented physical parameters and no simulator of its own (Section~\ref{sec:ds2}). A plausible-parameter simulator can still be useful as a prior for sim-to-real experiments, provided that its limitations are acknowledged. An I-Support--inspired single-module Cosserat rod was therefore built in PyElastica \cite{gazzola2018pyelastica}, with the geometric and material values of Manti et al.\ \cite{manti2016soft} as a starting point. Section~\ref{sec:sim_setup} describes the simulator and its calibration; Section~\ref{sec:sim_transfer} describes how the calibrated simulator was used to study sim-to-real transfer on Dataset 2.
 
-\subsection{Sim-to-Real Transfer Protocol}
-% TODO: pre-train on synthetic, fine-tune on real Dataset 2; evaluation protocol.
+\subsection{Simulator setup}
+\label{sec:sim_setup}
+
+\paragraph{Cosserat rod and geometry.}
+A single straight Cosserat rod of $50$ elements was instantiated with nominal rest length $L_0 = 205$\,mm and cross-sectional radius $r = 30$\,mm. Material parameters followed Manti et al.\ \cite{manti2016soft}: silicone density $\rho = 1100$\,kg\,m$^{-3}$ and Poisson's ratio $\nu = 0.5$, yielding a shear modulus $G = E / 3$. Young's modulus $E$ was left as a free parameter to be calibrated. Gravity of $9.81$\,m\,s$^{-2}$ acted along $-z$. One end of the rod was fixed and the opposite end was free, matching the downward-hanging mounting of the physical I-Support arm. Linear analytical damping was applied to absorb transient oscillations, and the rod was integrated to static equilibrium with a position-Verlet stepper at time step $\Delta t = 10^{-5}$\,s over a total integration time of $T = 3.0$\,s.
+
+\paragraph{Pneumatic actuation.}
+Chamber $i \in \{0, 1, 2\}$ occupies the azimuth $\theta_i = 2 \pi i / 3$ around the rod axis. Chamber pressure $P_i$ in pascals was mapped to rod deformation through two effects. The first was a bending moment of magnitude
+\begin{equation}
+  M_i = k_m \, P_i, \qquad k_m = 1.5 \times 10^{-5}\,\mathrm{N\,m\,Pa}^{-1}, \label{eq:sim_moment}
+\end{equation}
+applied uniformly along the rod about the axis $\mathbf{a}_i = (-\sin\theta_i,\, \cos\theta_i,\, 0)$, which is perpendicular to the chamber's radial offset. Because a pressurised chamber elongates and places its side on the outside of the curve, the moment is oriented so that the rod bends away from the active chamber. The second effect was a uniform elongation of the rod's reference configuration, proportional to the mean chamber pressure $\bar{P} = \tfrac{1}{3}(P_1 + P_2 + P_3)$:
+\begin{equation}
+  L_{\mathrm{rest}}(\mathbf{P}) = L_0 \bigl( 1 + k_L \bar{P} \bigr), \qquad k_L = 7.5 \times 10^{-6}\,\mathrm{Pa}^{-1}. \label{eq:sim_stretch}
+\end{equation}
+Representing elongation as a change of the rest configuration, rather than as an axial tip force, avoids artificially stiffening the rod against the bending moments of Eq.~\eqref{eq:sim_moment}. This decoupling allows the two I-Support behavioural anchors---bending at a single chamber and pure elongation at all three chambers---to be matched by independent choices of $k_m$ and $k_L$. The coupling constants were fixed manually at the values above so that both anchors remained reachable within the feasible range $E \in [10^{4}, 10^{6}]$\,Pa; only $E$ was calibrated. Table~\ref{tab:sim_params} lists the full set of simulator parameters, and Fig~\ref{fig:sim_rod} visualises the calibrated rod under four canonical actuations.
+
+\begin{table}[ht]
+\centering
+\caption[Simulator parameters for the PyElastica I-Support rod.]{Parameters of the PyElastica single-module Cosserat rod. The geometric and material values follow Manti et al.\ \cite{manti2016soft}; the coupling constants $k_m$ and $k_L$ were fixed manually as described in the text; Young's modulus $E$ was calibrated against the two I-Support anchors as described below.}
+\label{tab:sim_params}
+\begin{tabularx}{\linewidth}{@{}l l X@{}}
+\toprule
+Parameter                      & Symbol       & Value                                     \\
+\midrule
+Rest length                    & $L_0$        & $205$\,mm                                 \\
+Cross-section radius           & $r$          & $30$\,mm                                  \\
+Number of Cosserat elements    & $n$          & $50$                                      \\
+Density                        & $\rho$       & $1100$\,kg\,m$^{-3}$                      \\
+Poisson's ratio                & $\nu$        & $0.5$                                     \\
+Young's modulus                & $E$          & calibrated (see below)                    \\
+Moment coupling                & $k_m$        & $1.5 \times 10^{-5}$\,N\,m\,Pa$^{-1}$     \\
+Strain coupling                & $k_L$        & $7.5 \times 10^{-6}$\,Pa$^{-1}$           \\
+Gravitational acceleration     & $g$          & $9.81$\,m\,s$^{-2}$                       \\
+Integration step size          & $\Delta t$   & $10^{-5}$\,s                              \\
+Total integration time         & $T$          & $3.0$\,s                                  \\
+Damping constant               & $c$          & $3.0$                                     \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.75\linewidth]{fig/sim_rod_configurations.pdf}
+\caption[Calibrated PyElastica rod under four canonical actuations.]{Calibrated PyElastica rod under four canonical actuations: rest (black, no pressure and no gravity), gravity only (grey), chamber~0 at $1.2$\,bar (blue), and all three chambers at $1.2$\,bar (red). The single-chamber case produces pure bending; the all-chamber case produces pure elongation because the three bending moments cancel by the $120^{\circ}$ symmetry of Eq.~\eqref{eq:sim_moment}.}
+\label{fig:sim_rod}
+\end{figure}
+
+\paragraph{Young's modulus calibration.}
+Young's modulus was calibrated against two behavioural anchors reported for the I-Support platform \cite{manti2016soft}: a single-chamber actuation at $1.2$\,bar should produce a tip-bending angle of $118^{\circ}$, and an all-three-chamber actuation at the same pressure should produce an axial elongation of $85\%$. A grid of $20$ candidate values of $E$ was defined on a logarithmic scale between $10^{4}$\,Pa and $10^{6}$\,Pa. For each candidate, both anchor simulations were run to equilibrium, and the tip-bending angle $\phi(E)$ and elongation fraction $\epsilon(E)$ were measured from the resulting node positions. The calibration score was the sum of squared relative errors,
+\begin{equation}
+  \mathcal{L}(E) = \left( \frac{\phi(E) - 118^{\circ}}{118^{\circ}} \right)^{2} + \left( \frac{\epsilon(E) - 0.85}{0.85} \right)^{2}, \label{eq:sim_cal}
+\end{equation}
+and the value that minimised $\mathcal{L}$ was retained. The calibration was accepted only if the relative error on each anchor was below $10\%$. The calibrated Young's modulus and its anchor errors are reported in Chapter~\ref{chap:results}.
+
+\subsection{Sim-to-real transfer protocol}
+\label{sec:sim_transfer}
+
+The calibrated rod of Section~\ref{sec:sim_setup} was used as a source of synthetic $(\mathbf{P}, \mathbf{x})$ training data, which was then combined with Dataset 2 under three training strategies. The aim of the experiment was to quantify the transfer value of the simulator prior at several real-data budgets, rather than to produce a best-performing model on Dataset 2.
+
+\paragraph{Synthetic data generation.}
+Chamber-pressure triples $(P_1, P_2, P_3)$ were sampled independently and uniformly in $[0, 1.2]$\,bar with a fixed random seed of $42$. For each triple, the calibrated rod was run to static equilibrium under the settings of Table~\ref{tab:sim_params} and its tip position was recorded. A total of $800$ $(\mathbf{P}, \mathbf{x})$ pairs were generated and split into $720$ training and $80$ validation samples, with tip positions in millimetres. The synthetic chamber pressures were rescaled from pascals to the raw command range of Dataset 2, so that the synthetic output scale matched the target-domain scale. The sample count was capped at $800$ rather than the originally planned tens of thousands because a fully settled simulation at the calibrated settings takes several seconds of wall-clock time per sample, and a larger budget was not feasible on the available workstation.
+
+\paragraph{Training strategies.}
+Three data-combination strategies were compared (Table~\ref{tab:sim_strategies}). All three used the same feed-forward network as the tip-only inverse-kinematics variant on Dataset 2 (Section~\ref{sec:mlp_tip}): a four-hidden-layer MLP with widths $[64, 128, 128, 64]$, ReLU activations, an MSE loss on z-score--standardised inputs and outputs, Adam with batch size $64$, and the early-stopping policy of Section~\ref{sec:mlp_tip} unless stated otherwise.
+
+Strategy A (real-only) trained the network on a subset of the Dataset 2 training split, with no synthetic data. The subset was taken as a temporally ordered prefix of the training set, preserving the no-shuffle rule of Section~\ref{sec:splits}. Input and output scalers were fitted on this subset.
+
+Strategy B (sim-pretrain with real fine-tuning) first trained the network on the full synthetic training set for up to $100$ epochs at a learning rate of $10^{-3}$, then continued training on the same real subset as Strategy A at a reduced learning rate of $10^{-4}$, with the Section~\ref{sec:mlp_tip} early-stopping policy. Scalers were fitted on the real subset and used to transform both the synthetic pre-training data and the real fine-tuning data, so that the network saw a shared input/output normalisation across both phases.
+
+Strategy C (sim-only) trained the network on the synthetic data alone at a learning rate of $10^{-3}$, with no exposure to real data at any point during training; scalers were fitted on the synthetic data. The network was then evaluated on the Dataset 2 test split without further adjustment.
+
+\begin{table}[ht]
+\centering
+\caption[Sim-to-real training strategies.]{The three sim-to-real training strategies compared in this experiment. All three use the same MLP architecture as the tip-only inverse-kinematics variant on Dataset 2 (Section~\ref{sec:mlp_tip}) and are evaluated on the full Dataset 2 test split.}
+\label{tab:sim_strategies}
+\begin{tabularx}{\linewidth}{@{}l X X X@{}}
+\toprule
+                             & Strategy A             & Strategy B                    & Strategy C                     \\
+\midrule
+Pre-training data            & ---                    & $720$ synthetic frames        & ---                            \\
+Training / fine-tuning data  & real subset            & real subset                   & $720$ synthetic frames         \\
+Scaler fit on                & real subset            & real subset                   & synthetic data                 \\
+Pre-training $\mathrm{lr}$   & ---                    & $10^{-3}$                     & ---                            \\
+Training or fine-tuning $\mathrm{lr}$ & $10^{-3}$     & $10^{-4}$                     & $10^{-3}$                      \\
+Pre-training epoch cap       & ---                    & $100$                         & ---                            \\
+Training epoch cap           & $500$                  & $500$ (fine-tune phase)       & $500$                          \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Data-efficiency sweep and evaluation.}
+Strategies A and B were repeated at four real-data budgets---$10\%$, $25\%$, $50\%$, and $100\%$ of the Dataset 2 training split---each taken as a temporally ordered prefix. Strategy C was run once, since it uses no real data. All trained networks were evaluated on the full Dataset 2 test split, with predictions de-standardised before the error metrics were computed. The four metrics of Section~\ref{sec:mlp_tip} (MAE, MAPE, NMAE, $R^{2}$) were reported for every strategy and budget combination, so that the effect of the simulator prior can be read as the gap between Strategies A and B at each budget, and the sim-only transfer quality can be read from Strategy C.
 
 \section{Trajectory Tracking Evaluation (Exp 6)}
 % TODO: unified protocol (figure-of-eight, circle, random) applied to
