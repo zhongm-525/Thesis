@@ -1,38 +1,50 @@
 \chapter{Introduction}
 \label{chap:introduction}
 
-% TODO: Open with a motivating picture of pneumatic soft manipulators and the
-%       IK challenge (non-linearity, hysteresis, underactuation).
-
 \section{Motivation}
-% TODO: Why soft robotics? Safety in human interaction, minimally invasive
-%       surgery, compliant manipulation. Why IK is hard for soft robots
-%       (infinite DoF, pressure--deformation non-linearity, hysteresis).
+\label{sec:intro_motivation}
 
-\section{Problem Statement}
-% TODO: Formalise the task: given a target tip position (X, Y, Z) in the
-%       robot's base frame, predict chamber pressures p that drive the tip
-%       to that target. Note Dataset 1 is two-segment (6 chambers) and Dataset 2 is
-%       single-segment (3 valves).
+Soft robots are compliant manipulators that deform continuously under load rather than rotating rigid links at discrete joints. Their material compliance makes them attractive in applications where a conventional rigid arm would be unsafe or too intrusive, including minimally invasive surgery, assistive manipulation around people, confined-space inspection, and safe interaction with fragile objects. Pneumatic soft manipulators---silicone cylinders with several internal chambers that bend and elongate under pressurised air---are the canonical instance of this class and are the focus of this thesis.
 
-\section{Research Questions}
-% TODO: enumerate RQs, e.g.
-%   RQ1: Can a learned MLP IK outperform a PCC analytical baseline on
-%        real-robot data?
-%   RQ2: Does temporal modelling (LSTM) capture hysteresis better than a
-%        feed-forward MLP?
-%   RQ3: Does a Jacobian-learned IK generalise better than direct regression?
-%   RQ4: Does simulator pre-training (PyElastica) improve real-robot IK?
+The compliance that makes pneumatic soft manipulators safe and versatile also makes them difficult to control. Unlike a rigid-link arm whose joint angles determine its tip position directly, a soft arm has effectively continuous mechanical degrees of freedom along its length, and the mapping from actuation pressure to tip position is strongly nonlinear, history-dependent, and sensitive to manufacturing asymmetries of several centimetres \cite{manti2016soft}. The task of computing the actuation commands that drive the tip to a desired position---the inverse-kinematics problem---is correspondingly harder than for a rigid arm, and the analytical methods developed for rigid manipulators do not transfer directly.
+
+Over the past decade the soft-robotics community has developed four distinct families of inverse-kinematics method: analytical inversion of a simplified piecewise-constant-curvature model, feed-forward neural regression, recurrent neural regression, and Jacobian-learned iteration on a learned forward model \cite{webster2010review, giorelli2015nn, thuruthel2019modelbased, fang2022jacobian}. Each family has been evaluated in isolation on the platform its authors introduced, and each has reported headline numbers that are not directly comparable to those of the others. A practitioner choosing between these methods for a new platform must assemble evidence across separate papers, separate datasets, and separate evaluation protocols, with attendant confounds in calibration, evaluation metric, and recording procedure. This thesis consolidates the four families into a single experimental programme on two complementary pneumatic datasets and reports their relative behaviour under identical protocols.
+
+\section{Problem statement}
+\label{sec:intro_problem}
+
+This thesis considers the following concrete problem. Given a target tip position $\mathbf{x}^{\ast} \in \mathbb{R}^{3}$ expressed in the base-relative coordinate frame of a pneumatic soft manipulator, predict the actuation command vector $\mathbf{p} \in \mathbb{R}^{n_{p}}$ that drives the tip to $\mathbf{x}^{\ast}$. The problem is studied on two pre-recorded datasets with complementary actuation dimensionality. Dataset 1 is a two-module recording of the I-Support pneumatic arm \cite{manti2016soft, bianchi2023learning} in which six chamber pressures map into a three-dimensional tip position; the inverse is multi-valued in $\mathbf{p}$ for any given $\mathbf{x}^{\ast}$. Dataset 2 is an undocumented three-valve pneumatic recording in which three valve commands map into a three-dimensional tip position; the inverse is at most single-valued on the observed workspace.
+
+Evaluation is on the held-out test splits of the two datasets and proceeds through three complementary protocols: pressure-space prediction error against ground-truth commands, closed-loop position error obtained by passing predicted pressures through a learned forward-kinematics arbiter, and mean tracking error on four smooth reference trajectories. The scope of the thesis is software-only: no closed-loop experiments on physical hardware are reported, and all evaluations are carried out on archived data.
+
+\section{Research questions}
+\label{sec:intro_questions}
+
+The thesis addresses five research questions that together frame the head-to-head comparison of inverse-kinematics method families and the associated ablations.
+
+\begin{description}
+  \item[RQ1.] Does a feed-forward neural inverse-kinematics network outperform an analytical piecewise-constant-curvature baseline on the two pneumatic datasets, and if so, by how much on each error family (pressure-space, position-space, and trajectory-tracking)?
+  \item[RQ2.] Does the addition of partial-shape observations---specifically a mid-section marker triad---to the input of a learned inverse-kinematics network reduce pressure-space error on the over-actuated two-module arm, and is the reduction statistically clean in a paired evaluation on identical test frames?
+  \item[RQ3.] Does a recurrent architecture that conditions on a short window of past inputs improve accuracy over a feed-forward network, and under what conditions on the input features does the improvement survive?
+  \item[RQ4.] Does a Jacobian-learned iteration that inverts a trained forward-kinematics network produce smaller closed-loop position errors than a direct-regression network, and under what actuation-redundancy conditions does that advantage hold?
+  \item[RQ5.] Does a simulator pre-trained on an I-Support-inspired PyElastica rod improve inverse-kinematics accuracy on an undocumented target platform when fine-tuned on limited real data, or does the workspace gap between the simulator and the target dominate any potential benefit?
+\end{description}
+
+Each research question is addressed by a specific experimental programme in Chapter~\ref{chap:results} and interpreted in the corresponding section of Chapter~\ref{chap:discussion}.
 
 \section{Contributions}
-% TODO: bullet list of contributions, e.g.
-%   (1) unified benchmark of analytical, MLP, LSTM and Jacobian-learned IK
-%       on two publicly available soft-robot datasets;
-%   (2) a PyElastica-based sim-to-real pipeline for Dataset 2;
-%   (3) an ablation on the value of mid-segment marker information (Dataset 1);
-%   (4) a trajectory-tracking evaluation protocol applied uniformly across
-%       all methods.
+\label{sec:intro_contributions}
 
-\section{Thesis Structure}
-% TODO: roadmap of the remaining chapters (Background -> Methods -> Results
-%       -> Discussion -> Conclusion -> Future Work).
+The contributions of this thesis are as follows.
+
+\begin{enumerate}
+  \item A head-to-head empirical comparison of analytical piecewise-constant-curvature inverse kinematics, feed-forward neural inverse kinematics, recurrent neural inverse kinematics, and Jacobian-learned iterative inverse kinematics, carried out on two pneumatic datasets with complementary actuation redundancy under identical evaluation protocols.
+  \item A paired statistical measurement of the value of partial-shape sensing, through an ablation that varies only the input-feature vector between a tip-only and a tip-plus-mid configuration on identical test frames of the two-module I-Support recording.
+  \item A quantified sim-to-real transfer study on an undocumented pneumatic arm, with a decomposition of the reality gap into geometric, constitutive, viscoelastic, and actuation-dynamics components, and explicit reporting of the negative transfer result that follows from a non-overlapping synthetic workspace.
+  \item A three-property decision criterion---actuation redundancy, sensing coverage, and target-domain overlap---that synthesises the regime-specific findings of the experiments into a compact method-selection framework for practitioners.
+\end{enumerate}
+
+\section{Thesis structure}
+\label{sec:intro_structure}
+
+The remainder of this thesis is organised as follows. Chapter~\ref{chap:background} surveys the literature on pneumatic soft-manipulator design, continuum-robot kinematic modelling, the four inverse-kinematics method families, soft-robot simulation with PyElastica, and the evaluation metrics and published baselines that scale the quantitative findings. Chapter~\ref{chap:methods} describes the two datasets, the preprocessing pipeline, the four inverse-kinematics methods and the PyElastica simulator, and the training protocols and evaluation metrics used throughout. Chapter~\ref{chap:results} reports the outcome of the experimental programme: exploratory analysis of the datasets, the analytical PCC baselines, the feed-forward and recurrent neural methods, the Jacobian-learned iteration, the sim-to-real transfer study, the unified trajectory-tracking evaluation, the overall method comparison, and the ablation studies. Chapter~\ref{chap:discussion} interprets the results into a regime-by-regime story, positions them against the published baselines, discusses the role of mid-segment information and temporal modelling, contrasts the Jacobian-learned and direct-regression method families, analyses the sim-to-real observations, acknowledges the limitations of the evidence, and states the practical implications. Chapter~\ref{chap:conclusion} summarises the main findings, and Chapter~\ref{chap:future_work} identifies directions for further work that arise from the limitations.
