@@ -564,10 +564,51 @@ Per-step inference times were approximately $0.01$\,ms for PCC, $0.2$\,ms for ev
 \paragraph{Interpretation.}
 Trajectory tracking separates the methods into two regimes. When the dataset provides enough actuation redundancy and a smooth arbiter forward model---Dataset 1, with six chamber pressures and a well-conditioned learned forward map---the Jacobian-learned iteration drives closed-loop tip error to the millimetre tolerance floor and dominates every other method tested. When the dataset is under-actuated relative to its target workspace---Dataset 2, with three valves and a small disc-shaped workspace---the Jacobian iteration can diverge at workspace edges and a feed-forward network with a sim-to-real prior is the best tracker. In both regimes the recurrent and tip-plus-mid variants that dominate per-sample evaluation add no measurable benefit to smooth trajectory tracking, and in the Dataset 1 tip-plus-mid case the mid-marker substitution used at evaluation time actively degrades the network's input distribution. These regime-specific conclusions are revisited in Chapter~\ref{chap:discussion}.
 
-\section{Overall Comparison}
+\section{Overall comparison}
 \label{sec:overall}
-% TODO: master table (MAE / RMSE / MAPE per method per dataset) and a
-%       one-paragraph commentary on the best-performing method.
+
+This section collects the main quantitative findings of Sections~\ref{sec:res_pcc_single}--\ref{sec:res_traj} into a pair of master tables, one per dataset, and identifies the best method for each evaluation regime. The tables report the four metric groups used throughout the chapter: pressure-space accuracy on the held-out per-sample test split (MAE, $R^{2}$), closed-loop position error on the per-sample test split (Section~\ref{sec:res_jacobian}), mean tracking error on the four reference trajectories (Section~\ref{sec:res_traj}), and per-target inference time. Cells marked ``---'' correspond to method-metric combinations that were not evaluated in this thesis, either because the method is not compatible with the metric or because no trained checkpoint was produced on the relevant dataset.
+
+\begin{table}[ht]
+\centering
+\caption[Master comparison on Dataset 1.]{Master comparison of every inverse-kinematics method trained on Dataset 1. The closed-loop position error is the per-sample closed-loop error of Section~\ref{sec:res_jacobian} on the $1{,}500$-frame sub-sample used there (except for the two-segment PCC entry, which is on the full $11{,}956$-frame test split of Section~\ref{sec:res_pcc_multi}). The trajectory error is the mean tracking error averaged over the four reference trajectories of Section~\ref{sec:res_traj}. Inference time is the per-target wall-clock time reported in Section~\ref{sec:res_traj}.}
+\label{tab:res_overall_ds1}
+\begin{tabularx}{\linewidth}{@{}l X X X X X@{}}
+\toprule
+Method                                          & Pressure MAE      & Pressure $R^{2}$    & Closed-loop (mm)   & Trajectory (mm)            & Time (ms)           \\
+\midrule
+Two-segment PCC                                  & $26.30$            & $-0.02$              & $51.22$             & ---                         & $3$                  \\
+Feed-forward MLP, tip-only                       & $20.13$            & $0.323$              & $12.88$             & $7.83$                      & $0.08$               \\
+Feed-forward MLP, tip-plus-mid                   & $17.05$            & $0.437$              & ---                 & $19.08^{\ast}$              & $0.08$               \\
+LSTM, tip-only                                   & $21.00$            & $0.283$              & ---                 & $8.03$                      & $0.3$                \\
+LSTM, tip-plus-mid                               & $\mathbf{16.77}$   & $\mathbf{0.506}$     & ---                 & ---                         & $0.3$                \\
+Jacobian-learned IK (warm-start)                 & $21.71$            & ---                  & $\mathbf{0.71}$     & $\mathbf{0.77}$             & $47$                 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption[Master comparison on Dataset 2.]{Master comparison of every inverse-kinematics method trained on Dataset 2. The single-segment PCC pressure MAE is reported on its reachable subset (Section~\ref{sec:res_pcc_single}). The closed-loop position error is the per-sample closed-loop error of Section~\ref{sec:res_jacobian} on the full $2{,}712$-frame test split. The trajectory error is the mean tracking error averaged over the four reference trajectories of Section~\ref{sec:res_traj}.}
+\label{tab:res_overall_ds2}
+\begin{tabularx}{\linewidth}{@{}l X X X X X@{}}
+\toprule
+Method                                          & Pressure MAE        & Pressure $R^{2}$    & Closed-loop (mm)   & Trajectory (mm)            & Time (ms)           \\
+\midrule
+Single-segment PCC                               & $285.2^{\dagger}$    & ---                  & ---                 & $8.50$                      & $0.01$               \\
+Feed-forward MLP, tip-only                       & $150.1$              & $0.927$              & $2.70$              & $7.40$                      & $0.08$               \\
+LSTM, tip-only                                   & $\mathbf{143.08}$    & $\mathbf{0.931}$     & ---                 & $7.78$                      & $0.3$                \\
+Jacobian-learned IK (warm-start)                 & $200.92$             & ---                  & $\mathbf{0.78}$     & $13.37$                     & $46$                 \\
+Sim-to-real MLP (Strategy B, $100\%$ budget)     & $150.16$             & $0.928$              & ---                 & $\mathbf{6.20}$             & $0.2$                \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{No single method dominates every metric.}
+The master tables separate the methods into three regimes. For pressure-space accuracy on Dataset 2, the tip-only recurrent network, the tip-only feed-forward network, and the Strategy-B sim-to-real network all sit within one command unit of each other ($143$--$150$ MAE and $R^{2} \approx 0.93$), an order of magnitude better than the single-segment PCC baseline. For pressure-space accuracy on Dataset 1, the tip-plus-mid recurrent network leads with MAE $16.77$ and $R^{2} = 0.506$, the highest coefficient of determination achieved on Dataset 1 in this thesis and a $48\%$ reduction in MAE relative to the two-segment PCC baseline. For closed-loop position accuracy on an over-actuated arm (Dataset 1, six chambers), the warm-started Jacobian-learned iteration reaches $0.71$\,mm on the per-sample test sub-sample and $0.77$\,mm on the smooth reference trajectories---about an order of magnitude below every other Dataset 1 method tested and at the level of the marker-noise floor of Section~\ref{sec:eda_ds1}. For closed-loop position accuracy on an under-actuated arm (Dataset 2, three valves), the Strategy-B sim-to-real network is the best tracker at $6.20$\,mm on the reference trajectories, ahead of the real-only tip-only network at $7.40$\,mm; the Jacobian-learned iteration wins the per-sample closed-loop test at $0.78$\,mm but can diverge at the Dataset 2 workspace edge on the spiral trajectory, which raises its mean trajectory error to $13.37$\,mm. No single method in Tables~\ref{tab:res_overall_ds1}--\ref{tab:res_overall_ds2} is best on every metric and every dataset, and the choice between them depends on the actuation redundancy available and on whether the controlled quantity is position or pressure.
+
+\paragraph{Asterisks and caveats.}
+The tip-plus-mid feed-forward entry of Table~\ref{tab:res_overall_ds1} shows a trajectory-tracking error of $19.08$\,mm that is not comparable with the other entries on the same row: the evaluation protocol substitutes the training-distribution centroid for the mid-marker input at every trajectory target, which forces the network onto an out-of-distribution slice of its input space at every non-centroid target (Section~\ref{sec:res_traj}). The $19.08$\,mm is a consequence of that substitution rather than a property of the network itself, and is marked with an asterisk throughout the chapter. The single-segment PCC pressure MAE of $285.2$ on Dataset 2 is evaluated on the reachable $51\%$ of the test set only, as noted in Section~\ref{sec:res_pcc_single}; on the full test set the PCC baseline receives a penalised mean of $87.64$\,mm (Table~\ref{tab:res_pcc_single}), but the value is not directly comparable with the other rows of Table~\ref{tab:res_overall_ds2} because its definition differs. These two values are marked with dagger and asterisk to remind the reader when reading the tables in isolation.
 
 \section{Ablation Studies}
 % TODO: mid-marker ablation, sequence length, damping factor for DLS,
