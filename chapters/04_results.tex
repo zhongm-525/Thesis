@@ -74,7 +74,10 @@ Pearson correlations between each valve command and each tip coordinate are show
 \label{fig:ds2_correlation}
 \end{figure}
 
-\section{PCC Analytical Baseline (Exp 1)}
+\section{PCC analytical baseline}
+\label{sec:res_pcc}
+
+The piecewise-constant-curvature baselines of Section~\ref{sec:pcc_single}--\ref{sec:pcc_multi} serve two purposes in this thesis. They establish a classical reference point that the data-driven methods in Sections~\ref{sec:res_mlp}--\ref{sec:res_jacobian} can be compared against, and they probe two different failure modes of analytical modelling on soft-robot inverse kinematics. The single-segment variant of Section~\ref{sec:pcc_single} is the analytical form that Ma et al.\ \cite{ma2022bp} used on a comparable three-chamber arm; its performance on Dataset 2 is reported in Section~\ref{sec:res_pcc_single}. The two-segment variant of Section~\ref{sec:pcc_multi} is the obvious extension to the two-module I-Support arm of Dataset 1; its performance is reported in Section~\ref{sec:res_pcc_multi}. Neither variant is competitive with even a small feed-forward network on its respective dataset, but the two fail for different reasons---a structural ceiling on Dataset 2 and a multi-valued-inverse calibration collapse on Dataset 1---which together motivate the data-driven methods reported in the following sections.
 
 \subsection{Single-segment PCC on Dataset 2}
 \label{sec:res_pcc_single}
