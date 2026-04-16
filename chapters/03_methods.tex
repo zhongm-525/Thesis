@@ -161,7 +161,51 @@ The analytical PCC baselines of Sections~\ref{sec:pcc_single}--\ref{sec:pcc_mult
 \subsection{MLP architecture and training (Exp 2A, tip-only)}
 \label{sec:mlp_tip}
 
-The network was a fully connected multilayer perceptron. The input was the base-relative tip position $(x, y, z)$ in millimetres (three features), and the output was the actuation command vector: three valve commands for Dataset 2 and six chamber pressures for Dataset 1. Four hidden layers were used, each followed by a ReLU activation; no dropout or weight decay was applied. The hidden widths were set to $[128, 256, 256, 128]$ for Dataset 1 and $[64, 128, 128, 64]$ for Dataset 2. The larger network was allocated to Dataset 1 because its output space is higher-dimensional (six chambers rather than three) and its training split is larger.
+The network was a fully connected multilayer perceptron. The input was the base-relative tip position $(x, y, z)$ in millimetres (three features), and the output was the actuation command vector: three valve commands for Dataset 2 and six chamber pressures for Dataset 1. Four hidden layers were used, each followed by a ReLU activation; no dropout or weight decay was applied. The hidden widths were set to $[128, 256, 256, 128]$ for Dataset 1 and $[64, 128, 128, 64]$ for Dataset 2. The larger network was allocated to Dataset 1 because its output space is higher-dimensional (six chambers rather than three) and its training split is larger. Fig~\ref{fig:mlp_arch} shows the topology schematically, and Table~\ref{tab:mlp_config} lists the per-variant dimensions and the resulting trainable-parameter counts.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  layer/.style   = {draw, rounded corners=1pt, minimum width=16mm, minimum height=10mm, font=\small, align=center},
+  hidden/.style  = {layer, fill=blue!8},
+  inout/.style   = {layer, fill=gray!12},
+  arr/.style     = {-{Stealth[length=2mm,width=1.6mm]}, shorten >=1pt, shorten <=1pt},
+  edgelbl/.style = {font=\scriptsize, midway, above=-0.5mm}
+]
+\node[inout] (in) {Input\\{\scriptsize $d_{\text{in}}$}};
+\node[hidden, right=6mm of in] (h1) {Linear\\{\scriptsize $h_1$}};
+\node[hidden, right=6mm of h1] (h2) {Linear\\{\scriptsize $h_2$}};
+\node[hidden, right=6mm of h2] (h3) {Linear\\{\scriptsize $h_3$}};
+\node[hidden, right=6mm of h3] (h4) {Linear\\{\scriptsize $h_4$}};
+\node[inout, right=6mm of h4] (out) {Linear\\{\scriptsize $d_{\text{out}}$}};
+
+\draw[arr] (in) -- (h1);
+\draw[arr] (h1) -- node[edgelbl] {ReLU} (h2);
+\draw[arr] (h2) -- node[edgelbl] {ReLU} (h3);
+\draw[arr] (h3) -- node[edgelbl] {ReLU} (h4);
+\draw[arr] (h4) -- node[edgelbl] {ReLU} (out);
+\end{tikzpicture}
+\caption[Schematic of the MLP architecture used in Experiments 2A and 2B.]{Schematic of the feed-forward MLP used in Experiments 2A and 2B. All three configurations share the same five-linear-layer topology with ReLU activations between hidden layers; the input dimension $d_{\text{in}}$, output dimension $d_{\text{out}}$, and hidden widths $(h_1, h_2, h_3, h_4)$ are listed in Table~\ref{tab:mlp_config}.}
+\label{fig:mlp_arch}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\caption[MLP configurations for Experiments 2A and 2B.]{MLP input--output dimensions and hidden widths for Experiments 2A and 2B. The training protocol (MSE loss on standardised outputs, Adam optimiser at learning rate $10^{-3}$, batch size $64$, up to $500$ epochs with early stopping on the validation loss after $30$ epochs without improvement, no dropout or weight decay, and random seed $42$) is shared across all three variants.}
+\label{tab:mlp_config}
+\begin{tabularx}{\linewidth}{@{}l X X X@{}}
+\toprule
+                 & Exp 2A (Dataset 1)           & Exp 2A (Dataset 2)         & Exp 2B (Dataset 1)            \\
+\midrule
+Input features   & tip $(x, y, z)$              & tip $(x, y, z)$            & tip + mid ($6$ coordinates)   \\
+Input dim        & 3                            & 3                          & 6                             \\
+Output           & 6 chamber pressures          & 3 valve commands           & 6 chamber pressures           \\
+Output dim       & 6                            & 3                          & 6                             \\
+Hidden widths    & $[128, 256, 256, 128]$       & $[64, 128, 128, 64]$       & $[128, 256, 256, 128]$        \\
+Trainable parameters & $132{,}998$              & $33{,}539$                 & $133{,}382$                   \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 Training used the mean squared error (MSE) loss on the z-score--standardised outputs, the standardisation having been fitted on the training split only (Section~\ref{sec:splits}). Parameter updates used the Adam optimiser with learning rate $10^{-3}$, batch size $64$, and no weight decay. Training was capped at $500$ epochs with early stopping on the validation loss, triggered after $30$ consecutive epochs without improvement. The checkpoint with the lowest validation loss was retained for all reported test metrics.
 
