@@ -13,22 +13,20 @@ Two pre-recorded datasets were used throughout this project. The first (Dataset 
 \centering
 \caption[Summary of the two datasets used in this thesis.]{Summary of the two datasets used in this thesis. Workspace extents are measured after the preprocessing described in Section~\ref{sec:splits}.}
 \label{tab:dataset_summary}
-\begin{tabular}{lll}
+\begin{tabularx}{\linewidth}{@{}l X X@{}}
 \toprule
 Property & Dataset 1 & Dataset 2 \\
 \midrule
 Robot configuration     & Two modules in series    & Single segment \\
 Actuation channels      & 6 chambers               & 3 valves \\
-Actuation range         & 0--1.2 bar               & 0--2500 (un-calibrated) \\
+Actuation range         & 0--1.2\,bar              & 0--2500 (un-calibrated) \\
 Sensing                 & 9 optical markers        & Tip position only \\
 Sampling rate           & 20\,Hz                   & Not documented \\
 Raw frames              & 24{,}000                 & 18{,}072 \\
 Usable frames           & 23{,}936                 & 18{,}072 \\
-Workspace extent ($X$)  & $\approx 200$\,mm        & $\approx 102$\,mm \\
-Workspace extent ($Y$)  & $\approx 200$\,mm        & $\approx 104$\,mm \\
-Workspace extent ($Z$)  & $\approx 80$\,mm         & $\approx 64$\,mm \\
+Workspace extent ($X, Y, Z$) & $\approx 200 \times 200 \times 80$\,mm & $\approx 102 \times 104 \times 64$\,mm \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \subsection{Dataset 1 --- I-Support (20\,Hz)}
