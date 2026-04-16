@@ -121,17 +121,33 @@ The fourth strategy is \emph{real-to-sim calibration}, in which real data are us
 
 Across these four strategies the soft-robotics sim-to-real literature converges on one recurring finding: the transfer value of a simulator is bounded above by its geometric and kinematic overlap with the real robot, and efforts to close the reality gap through architectural or regularisation tricks do not overcome a simulator whose workspace does not overlap the real one. This is the finding that the PyElastica experiments of Chapter~\ref{chap:results} reproduce on Dataset 2 and that the post-hoc analysis of Section~\ref{sec:disc_sim} dissects.
 
-\section{Evaluation Metrics and Benchmarks}
+\section{Evaluation metrics and benchmarks}
+\label{sec:bg_metrics}
 
-\subsection{Pose Error Metrics}
-% TODO: MAE / RMSE / MAPE of tip position; percentage of workspace diameter.
+This section surveys the metrics used to evaluate soft-robot inverse-kinematics methods in the literature (Sections~\ref{sec:bg_metrics_pose}, \ref{sec:bg_metrics_traj}) and identifies the published headline results that serve as scale markers for this thesis (Section~\ref{sec:bg_metrics_baselines}).
 
-\subsection{Trajectory Tracking Metrics}
-% TODO: path-following error, smoothness, actuation effort.
+\subsection{Pose error metrics}
+\label{sec:bg_metrics_pose}
 
-\subsection{Published Baselines}
-% TODO: headline numbers from Ma et al. (2022), Giorelli et al., Fang et al.
-%       as the bar to clear.
+Two families of error metric are in common use for soft-robot inverse kinematics. The first measures \emph{position-space} error---the Euclidean distance between a target tip position and the position actually achieved once the predicted actuation has been applied. Published work typically reports the mean, the $95$th percentile, and the maximum of this distance over a test set, sometimes together with the root mean square. Because soft-robot platforms span arm lengths from about $100$\,mm to several metres, many authors also report the error normalised by arm length, for example the $7.35$\,mm mean tip error (corresponding to $2.62\%$ of a $280$\,mm arm) reported by Giorelli et al.\ \cite{giorelli2015nn}. Normalised reporting is standard practice when comparing across platforms and is the form used in the cross-platform table of Section~\ref{sec:disc_benchmarks}.
+
+The second family measures \emph{actuation-space} (or \emph{pressure-space}) error, the difference between predicted and ground-truth actuation commands on the same test frames. Mean absolute error (MAE) in the native actuation unit is the simplest form and is directly comparable across runs on the same dataset; mean absolute percentage error (MAPE) normalises by the ground-truth magnitude and is the metric reported by Ma et al.\ \cite{ma2022bp}. MAPE is sensitive to near-zero ground-truth commands, and most implementations apply a small-value threshold to avoid divide-by-near-zero inflation; the definition used in this thesis (Eq.~\eqref{eq:mape}) excludes samples with $|y| < 1\%$ of the maximum command. The coefficient of determination $R^{2}$ captures the fraction of ground-truth variance explained by the predictor and is widely used for regression tasks; a negative $R^{2}$ indicates a predictor worse than a constant regressor returning the per-output mean, which is the failure mode observed for the sim-only network of Section~\ref{sec:res_sim_transfer}.
+
+Comparing pressure-space metrics across platforms is more delicate than comparing position-space metrics, because pressure commands have different ranges, different physical units, and different zero-frames on different platforms. Where the actuation units are documented---as they are for Ma et al.'s three-chamber arm but not for Dataset 2 of this thesis---headline MAPE numbers are directly comparable between studies; where the units are undocumented, any cross-study comparison has to be mediated by a position-space arbiter, typically a learned forward-kinematics network (Section~\ref{sec:res_jacobian}).
+
+\subsection{Trajectory tracking metrics}
+\label{sec:bg_metrics_traj}
+
+A second class of evaluation considers how well an inverse-kinematics method drives the tip along a target trajectory rather than how well it predicts isolated targets drawn from a test set. Trajectory-tracking metrics extend the position-space metrics above to a sequence of targets and add two further dimensions specific to control-relevant evaluation. The first is smoothness of the predicted actuation command, commonly quantified either as the integral of squared jerk---the third time derivative of the command---or as the sum of squared discrete third differences that approximates it on a sampled sequence. Smoother commands reduce actuator wear, valve chatter, and power consumption. The second additional dimension is the per-step inference time, which determines the maximum control-loop rate at which a given method can be deployed.
+
+The specific trajectory shapes used vary by platform and application, but four recur across soft-robot papers: circles and figures-of-eight for planar bending, squares for testing corner handling, and helical spirals for probing the axial workspace. Chapter~\ref{chap:methods} adopts a four-trajectory protocol with these shapes (Section~\ref{sec:traj}), and Section~\ref{sec:metrics} defines the specific tracking, smoothness, and inference-time metrics used. The trajectory-tracking evaluation of Section~\ref{sec:res_traj} is the setting in which several methods that rank one way on per-sample metrics either converge or reverse their ranking, making it the single most informative comparison protocol in this thesis.
+
+\subsection{Published baselines}
+\label{sec:bg_metrics_baselines}
+
+Three published results serve as scale markers for the quantitative findings of this thesis and are introduced in detail in Section~\ref{sec:disc_benchmarks}. Giorelli et al.\ \cite{giorelli2015nn} reported a mean tip error of $7.35$\,mm ($2.62\%$ of arm length) for a feed-forward network and $15.12$\,mm ($5.40\%$) for an analytical Jacobian on a $280$\,mm cable-driven soft arm, establishing the benchmark for feed-forward-versus-analytical comparison on an unmodelled platform. Ma et al.\ \cite{ma2022bp} reported a pressure-space MAPE below $5\%$ for a back-propagation neural network trained on $216$ samples of a purpose-built three-chamber pneumatic arm, establishing the benchmark for learning-based inverse kinematics on pneumatic platforms with documented actuation units. Fang et al.\ \cite{fang2022jacobian} reported sub-millimetre closed-loop position error for a Jacobian-learned iteration on a pneumatic soft robot with a digital-twin simulator, establishing the benchmark for sim-to-real transfer via a learned forward map.
+
+None of the three uses exactly the same robot, dataset, or metric as this thesis, and the numerical comparisons in Section~\ref{sec:disc_benchmarks} are therefore indicative rather than definitive. Collected together they bracket the accuracy range that cleanly characterised soft-robot platforms have attained in the last decade---from the few-percent-of-arm-length accuracy that a small feed-forward network can reach on an undocumented platform, through the sub-$5\%$ pressure MAPE that a purpose-built platform with calibrated units can achieve, to the sub-millimetre closed-loop accuracy that a Jacobian-learned iteration with a digital twin can reach on a pneumatic arm. This thesis's quantitative findings are positioned against this range in Section~\ref{sec:disc_benchmarks}.
 
 \section{Summary and Research Gap}
 % TODO: state the gap this thesis fills: a head-to-head comparison of
