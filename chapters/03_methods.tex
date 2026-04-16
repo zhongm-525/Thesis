@@ -222,10 +222,74 @@ Because the Dataset 1 loader drops frames where either the mid or the tip triad 
 
 The two variants were compared through three paired statistics computed on the common test set: the fraction of test frames on which the tip-plus-mid variant produced a lower per-sample pressure RMSE than the tip-only variant; the mean and bootstrap $95\%$ confidence interval of the per-frame error difference (tip-only minus tip-plus-mid); and the two-sided Wilcoxon signed-rank test on the paired per-frame errors. Aggregate MAE, MAPE, and $R^{2}$ were also reported for each variant.
 
-\section{Temporal IK with LSTM (Exp 3)}
+\section{Temporal IK with LSTM}
 \label{sec:lstm}
-% TODO: windowing strategy, sequence length, stateful vs. stateless,
-%       expected benefit on hysteresis.
+
+The feed-forward networks of Section~\ref{sec:mlp} predict chamber pressures from a single-frame input. Pneumatic soft actuators, however, exhibit history-dependent behaviour: the same target tip can require different actuations depending on the arm's recent motion, because of viscoelastic creep in the silicone and flow dynamics in the pneumatic lines. A recurrent model that sees a short window of recent frames can, in principle, condition its prediction on this history. Long short-term memory (LSTM) networks \cite{hochreiter1997lstm} were used here as a standard choice for sequence-to-scalar regression.
+
+Dataset 1 was the primary target of this experiment, since its recordings are continuous $20$\,Hz random-walk trajectories (Section~\ref{sec:ds1}). Dataset 2 was also evaluated for completeness, although the exploratory analysis (Section~\ref{sec:eda}) indicated that its rows do not carry meaningful temporal structure; on Dataset 2 the recurrent model therefore serves more as a negative control than as an expected improvement over the MLP.
+
+\paragraph{Sliding-window construction.}
+Let $K$ denote the window length in frames. Each training example was a contiguous window of $K$ frames of the same input features used by the feed-forward networks (tip-only, or tip-plus-mid for the Dataset 1 ablation), with the actuation command at the $K$-th (last) frame taken as its label. Windows were constrained to remain within a single recording in Dataset 1 and within a single split in Dataset 2, so that no window crossed a recording boundary or the train/validation/test boundary (Section~\ref{sec:splits}). The z-score standardisation of Section~\ref{sec:splits} was applied to the flat frame data before windowing, so that the per-feature mean and variance stayed identical to those of the corresponding feed-forward run. The first $K-1$ frames of each recording or split therefore had no label and were dropped; the same truncation was applied to the validation and test sets to keep inputs and labels aligned.
+
+\paragraph{Architecture.}
+Two LSTM layers \cite{hochreiter1997lstm} were stacked on the windowed input, with $128$ hidden units per layer and no recurrent dropout. The hidden state at the last time step of the second layer was projected to the actuation space by a single linear head. Input and output dimensions matched the feed-forward setup: three inputs and three outputs for the Dataset 2 variant; three inputs and six outputs for the Dataset 1 tip-only variant; and six inputs and six outputs for the Dataset 1 tip-plus-mid variant. The hidden width and depth were kept identical across the three configurations. Fig~\ref{fig:lstm_arch} shows the topology schematically, and Table~\ref{tab:lstm_config} lists the per-variant dimensions and trainable-parameter counts.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  layer/.style   = {draw, rounded corners=1pt, minimum width=16mm, minimum height=10mm, font=\small, align=center},
+  lstm/.style    = {layer, fill=green!10},
+  take/.style    = {layer, fill=blue!8},
+  head/.style    = {layer, fill=orange!12},
+  inout/.style   = {layer, fill=gray!12},
+  arr/.style     = {-{Stealth[length=2mm,width=1.6mm]}, shorten >=1pt, shorten <=1pt}
+]
+\node[inout] (in) {Input\\{\scriptsize $K \times d_{\text{in}}$}};
+\node[lstm, right=6mm of in] (l1) {LSTM\\{\scriptsize $128$}};
+\node[lstm, right=6mm of l1] (l2) {LSTM\\{\scriptsize $128$}};
+\node[take, right=6mm of l2] (last) {Last step\\{\scriptsize $128$}};
+\node[head, right=6mm of last] (h) {Linear};
+\node[inout, right=6mm of h] (out) {Output\\{\scriptsize $d_{\text{out}}$}};
+
+\draw[arr] (in) -- (l1);
+\draw[arr] (l1) -- (l2);
+\draw[arr] (l2) -- (last);
+\draw[arr] (last) -- (h);
+\draw[arr] (h) -- (out);
+\end{tikzpicture}
+\caption[Schematic of the LSTM architecture.]{Schematic of the recurrent architecture used for temporal inverse kinematics. A window of $K$ consecutive frames (each of dimension $d_{\text{in}}$) is passed through two stacked LSTM layers of $128$ hidden units; the hidden state at the final time step of the second layer is projected to the $d_{\text{out}}$-dimensional actuation space by a linear head.}
+\label{fig:lstm_arch}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\caption[LSTM configurations for the three recurrent variants.]{LSTM input--output dimensions, window length, and trainable-parameter counts for the three recurrent variants. All three share the same architecture (two LSTM layers of $128$ hidden units, linear head on the last-step hidden state) and the same training protocol (MSE loss on standardised outputs, Adam at learning rate $10^{-3}$, batch size $64$, up to $300$ epochs with early stopping on the validation loss after $20$ epochs without improvement, random seed $42$).}
+\label{tab:lstm_config}
+\begin{tabularx}{\linewidth}{@{}l X X X@{}}
+\toprule
+                      & Tip-only, Dataset 1    & Tip-only, Dataset 2    & Tip-plus-mid, Dataset 1 \\
+\midrule
+Input features        & tip $(x,y,z)$          & tip $(x,y,z)$          & tip + mid ($6$ coordinates) \\
+Input dim             & 3                       & 3                       & 6 \\
+Output                & 6 chamber pressures    & 3 valve commands        & 6 chamber pressures \\
+Output dim            & 6                       & 3                       & 6 \\
+Window length $K$     & 10                      & 10                      & 10 \\
+Hidden size           & 128                     & 128                     & 128 \\
+Number of layers      & 2                       & 2                       & 2 \\
+Trainable parameters  & $200{,}966$             & $200{,}579$             & $202{,}502$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Training protocol.}
+Training used the mean squared error loss on the z-score--standardised outputs, matching the feed-forward setup. Parameters were updated with the Adam optimiser at learning rate $10^{-3}$, batch size $64$, and no weight decay. Training was capped at $300$ epochs with early stopping on the validation loss after $20$ consecutive epochs without improvement. The checkpoint with the lowest validation loss was retained for evaluation.
+
+\paragraph{Window-length sweep.}
+The window length $K$ trades coverage of past frames against overfitting risk (a longer window increases the input sequence length without changing the label rate). Three settings were evaluated on each dataset, $K \in \{5, 10, 20\}$, with all other hyperparameters held at their primary values. On Dataset 1, the sweep tested whether any hysteresis signal is captured within the first $0.25$\,s to $1$\,s of context at a $20$\,Hz sampling rate. On Dataset 2, the sweep served as a check on the exploratory-analysis finding of no meaningful temporal structure (Section~\ref{sec:eda}).
+
+\paragraph{Evaluation.}
+The test-set metrics reported for the recurrent variants were the same four as for the MLPs (MAE, MAPE, NMAE, and $R^{2}$, defined in Section~\ref{sec:mlp_tip}). To enable a fair paired comparison with the feed-forward networks, every recurrent-model report on a given dataset was evaluated on the same rows as the corresponding feed-forward report, which required the first $K-1$ frames of each test segment to be dropped from both. The feed-forward predictions used in the paired comparison were recomputed on this reduced set, so that any difference in the reported metrics reflects the change of model class rather than a change in the test population.
 
 \section{Jacobian-Learned IK (Exp 4)}
 % TODO: learned-Jacobian + damped least-squares update rule from
