@@ -278,8 +278,81 @@ Because both networks were evaluated on the identical frames and differed only i
 \paragraph{Interpretation.}
 The $15\%$ MAE reduction and the highly significant paired test establish that the mid-marker input carries information that the tip position alone does not. In physical terms, the two-segment I-Support arm can place its end-effector at the same tip with multiple combinations of per-segment bending angles, and the mid marker pins down the internal configuration that the tip alone leaves ambiguous. The improvement is substantial and stable, but $R^{2} = 0.437$ remains far below the value achieved on Dataset 2 ($0.927$), suggesting that even tip-plus-mid does not fully resolve the residual sources of error on Dataset 1. Other factors such as random-walk pressure excitation and hysteresis may contribute to what remains, and are examined in the recurrent results of Section~\ref{sec:res_lstm}.
 
-\section{Temporal LSTM IK (Exp 3)}
-% TODO: comparison against MLP; hysteresis analysis.
+\section{Temporal LSTM IK}
+\label{sec:res_lstm}
+
+The recurrent networks of Section~\ref{sec:lstm} were evaluated in three configurations: tip-only input on Dataset 2, tip-only input on Dataset 1, and tip-plus-mid input on Dataset 1. All metrics in this section use the reduced test rows that remain after the first $K - 1$ frames of each test segment are dropped, so the recurrent and feed-forward models are compared on identical samples (Section~\ref{sec:lstm}). The primary window length was $K = 10$, and a sweep over $K \in \{5, 10, 20\}$ is reported at the end of the section. Table~\ref{tab:res_lstm} gives the head-to-head comparison against the feed-forward baselines.
+
+\begin{table}[ht]
+\centering
+\caption[LSTM versus feed-forward network on both datasets.]{Recurrent and feed-forward networks on the same Dataset 1 and Dataset 2 test rows. Metric definitions follow Section~\ref{sec:metrics}; the per-frame RMSE is the root-mean-square of the per-chamber pressure residuals for each frame, averaged across the reduced test set.}
+\label{tab:res_lstm}
+\begin{tabularx}{\linewidth}{@{}l X X X@{}}
+\toprule
+Configuration                                & MAE            & $R^{2}$       & Per-frame RMSE (mean) \\
+\midrule
+\multicolumn{4}{@{}l}{\emph{Dataset 2, tip-only}}\\
+\quad Feed-forward                           & $150.35$        & $0.928$        & $172.95$               \\
+\quad LSTM                                   & $143.08$        & $0.931$        & $167.25$               \\
+\midrule
+\multicolumn{4}{@{}l}{\emph{Dataset 1, tip-only}}\\
+\quad Feed-forward                           & $20.15$         & $0.323$        & $24.07$                \\
+\quad LSTM                                   & $21.00$         & $0.283$        & $24.88$                \\
+\midrule
+\multicolumn{4}{@{}l}{\emph{Dataset 1, tip-plus-mid}}\\
+\quad Feed-forward                           & $17.05$         & $0.437$        & $21.75$                \\
+\quad LSTM                                   & $16.77$         & $0.506$        & $20.58$                \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Dataset 2: marginal improvement consistent with an IID distribution.}
+On Dataset 2 the recurrent network reduced pressure MAE from $150.35$ to $143.08$ command units, a $4.8\%$ improvement, and lifted $R^{2}$ from $0.928$ to $0.931$. The improvement is small in both absolute and relative terms. The finding is consistent with Section~\ref{sec:eda_ds2}'s conclusion that Dataset 2's rows behave as statistically independent samples rather than as a trajectory: the $10$-frame window carries almost no additional predictive signal beyond the current tip.
+
+\paragraph{Dataset 1 tip-only: LSTM does not help.}
+On Dataset 1 with the tip-only input, the recurrent network performed slightly worse than the feed-forward baseline. Pressure MAE rose from $20.15$ to $21.00$, and $R^{2}$ fell from $0.323$ to $0.283$. The best validation epoch of the recurrent run collapsed to $2$ at $K = 10$ and $1$ at $K = 20$, indicating that increasing the window length added parameters and over-fitting risk without giving the network signal it could generalise. The result extends the interpretation of Section~\ref{sec:res_mlp_tip}: if the tip-to-pressure inverse on a two-segment arm is fundamentally under-determined from the tip alone, then adding historical tip samples does not constrain the solution, and the recurrent network pays a parameter-count penalty for no benefit.
+
+\paragraph{Dataset 1 tip-plus-mid: lowest Dataset 1 error reported in this thesis.}
+When the mid-marker coordinates were added to the input, the recurrent network became the most accurate Dataset 1 configuration tested. Pressure MAE fell from $17.05$ (feed-forward tip-plus-mid) to $16.77$, $R^{2}$ rose from $0.437$ to $0.506$, and the per-frame RMSE mean fell from $21.75$ to $20.58$ command units. Fig~\ref{fig:res_lstm_ds1_all} shows the four Dataset 1 configurations side by side: the recurrent tip-plus-mid bar is the lowest. Temporal context therefore improves accuracy once the mid marker has disambiguated the per-segment configuration of the arm, even though the same temporal context does not help the tip-only case.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.85\linewidth]{fig/lstm_ds1_all_variants.pdf}
+\caption[Four Dataset 1 inverse-kinematics variants side by side.]{Mean per-frame pressure RMSE on the Dataset 1 test set for the four inverse-kinematics variants compared here, evaluated on the identical LSTM-windowed test rows. Adding the mid marker is the dominant driver of improvement on both architectures, and temporal context helps only once the mid input is present.}
+\label{fig:res_lstm_ds1_all}
+\end{figure}
+
+\paragraph{Window-length sweep.}
+The window length $K$ was swept over $\{5, 10, 20\}$ with all other hyperparameters fixed (Section~\ref{sec:lstm}). On Dataset 2, the test MAE fell monotonically from $148.05$ at $K = 5$ to $138.68$ at $K = 20$ (Table~\ref{tab:res_lstm_sweep}, Fig~\ref{fig:res_lstm_sweep}); longer windows consistently helped, with diminishing but positive returns per added frame of context. On Dataset 1 with the tip-only input, the test MAE rose from $20.50$ at $K = 5$ to $21.11$ at $K = 20$, and the best-epoch index of the recurrent training run fell from $15$ to $1$. Longer windows on Dataset 1 therefore translated directly into earlier over-fitting, consistent with the interpretation that the additional historical context carries no new signal to generalise from.
+
+\begin{table}[ht]
+\centering
+\caption[LSTM window-length sweep on both datasets.]{Effect of the recurrent window length $K$ on the LSTM test-set MAE. The best-epoch column reports the validation-selected epoch at which early stopping triggered.}
+\label{tab:res_lstm_sweep}
+\begin{tabularx}{\linewidth}{@{}l X X X X@{}}
+\toprule
+Dataset and input              & $K$  & MAE       & $R^{2}$ & Best epoch \\
+\midrule
+Dataset 1, tip-only             & $5$  & $20.50$    & $0.284$  & $15$        \\
+Dataset 1, tip-only             & $10$ & $21.00$    & $0.283$  & $2$         \\
+Dataset 1, tip-only             & $20$ & $21.11$    & $0.290$  & $1$         \\
+\midrule
+Dataset 2, tip-only             & $5$  & $148.05$   & $0.929$  & $19$        \\
+Dataset 2, tip-only             & $10$ & $143.08$   & $0.931$  & $14$        \\
+Dataset 2, tip-only             & $20$ & $138.68$   & $0.934$  & $16$        \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.95\linewidth]{fig/lstm_window_sweep.pdf}
+\caption[LSTM test MAE against window length on each dataset.]{Test-set pressure MAE of the LSTM against window length $K$ on each dataset. Dataset 2 (right) benefits monotonically from longer windows; Dataset 1 (left) does not benefit, and the best-epoch index of its training run collapses as $K$ grows, which is consistent with faster over-fitting when the added context carries no generalisable signal.}
+\label{fig:res_lstm_sweep}
+\end{figure}
+
+\paragraph{Interpretation.}
+Taken together, the three configurations suggest that a recurrent architecture buys accuracy only when the single-frame input is informative enough for the trajectory of the past $K$ frames to carry a physically meaningful signal. On Dataset 2 the current tip is almost sufficient, so the window adds only a small margin. On Dataset 1 with the tip alone, the current tip is under-determined and historical tips cannot resolve the internal ambiguity, so the recurrent network over-fits. Once the mid marker pins down the per-segment configuration, the past $K$ frames of that configuration carry motion-direction information that the feed-forward network cannot access, and the recurrent model finds an additional signal to exploit. The resulting $20.58$ command-unit per-frame RMSE on Dataset 1 is the lowest reported so far in this thesis, and is carried forward as the Dataset 1 reference in the Jacobian-learned and trajectory-tracking comparisons of Sections~\ref{sec:res_jacobian} and~\ref{sec:res_traj}.
 
 \section{Jacobian-Learned IK (Exp 4)}
 % TODO: convergence behaviour, final tip error, robustness.
