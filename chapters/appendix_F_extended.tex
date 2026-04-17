@@ -92,6 +92,13 @@ Figure~\ref{fig:app_jacobian_time} shows the per-target inference-time distribut
   \label{fig:app_jacobian_time}
 \end{figure}
 
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=0.98\linewidth]{fig/ds1_pressure_tip_lag.pdf}
+  \caption[DS1 empirical pressure-to-tip lag against Alessi 2024.]{Empirical pressure-to-tip lag on Dataset~1's training frames (seeds~1 and 2, $N = 7981$) compared with Alessi et al.\ \cite{alessi2024pushing} Table~1. (a) Normalised cross-correlation $R(\tau)$ of each chamber's pressure against the tip-displacement magnitude; chamber~5 peaks at $\tau = 5$ frames ($0.25$\,s) with $R = 0.87$, within one frame of the $0.2$\,s pressurisation time. The median absolute peak lag across all six chambers is $13$ frames. (b) Event-triggered average of the tip-displacement response to dp/dt extrema (rising and falling templates, mean over six chambers); the random-walk excitation does not cleanly isolate Alessi's asymmetric load/unload transients, but the order-of-magnitude lag agreement is sufficient to motivate a recurrent window $K \geq 10$ frames.}
+  \label{fig:app_ds1_lag}
+\end{figure}
+
 \section{Reproducibility}
 \label{app:reproducibility}
 
