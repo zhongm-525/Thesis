@@ -62,33 +62,6 @@ Table~\ref{tab:app_hyperparams_solvers} collects the hyperparameters of the non-
   \end{tabularx}
 \end{table}
 
-Table~\ref{tab:app_sim_params} lists the full parameter set of the PyElastica Cosserat-rod simulator used in the sim-to-real study of Section~\ref{sec:sim}. The caption records the two calibration anchors (Manti 2016 bending and elongation) and the AM-I-Support geometry reference that supersedes the historical Manti values for any future DS1-faithful re-calibration.
-
-\begin{table}[!htbp]
-  \centering
-  \small
-  \caption[Simulator parameters for the PyElastica I-Support rod.]{Parameters of the PyElastica single-module Cosserat rod. Geometric and material values follow Manti et al.\ \cite{manti2016soft}; Alessi et al.\ \cite{alessi2024pushing} Table~1 reports a slightly updated AM-variant geometry ($L = 190$\,mm, actuator-centroid offset $\delta = 20$\,mm, module mass $m = 0.170$\,kg) that would be the natural reference for a DS1-faithful re-calibration (Chapter~\ref{chap:future_work}). The coupling constants $k_m$ and $k_L$ were fixed manually as described in Section~\ref{sec:sim_setup}; Young's modulus $E$ was calibrated against the two I-Support anchors. The calibrated $E$ is an \emph{effective} bending stiffness of the single Cosserat rod, not the TPU material modulus ($\approx 400$\,MPa, \cite{centurelli2022closed}); it absorbs the helicoidal reinforcement and chamber non-uniformity that the reduced-order rod does not represent \cite{dellasantina2018dynamic}.}
-  \label{tab:app_sim_params}
-  \begin{tabularx}{\linewidth}{@{}l l X@{}}
-    \toprule
-    Parameter                      & Symbol       & Value                                     \\
-    \midrule
-    Rest length                    & $L_0$        & $205$\,mm                                 \\
-    Cross-section radius           & $r$          & $30$\,mm                                  \\
-    Number of Cosserat elements    & $n$          & $50$                                      \\
-    Density                        & $\rho$       & $1100$\,kg\,m$^{-3}$                      \\
-    Poisson's ratio                & $\nu$        & $0.5$                                     \\
-    Young's modulus                & $E$          & calibrated ($8.86 \times 10^{4}$\,Pa, see Section~\ref{sec:res_sim_cal}) \\
-    Moment coupling                & $k_m$        & $1.5 \times 10^{-5}$\,N\,m\,Pa$^{-1}$     \\
-    Strain coupling                & $k_L$        & $7.5 \times 10^{-6}$\,Pa$^{-1}$           \\
-    Gravitational acceleration     & $g$          & $9.81$\,m\,s$^{-2}$                       \\
-    Integration step size          & $\Delta t$   & $10^{-5}$\,s                              \\
-    Total integration time         & $T$          & $3.0$\,s                                  \\
-    Damping constant               & $c$          & $3.0$                                     \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
-
 \section{Supplementary figures}
 \label{app:extended_figures}
 
@@ -117,86 +90,6 @@ Figure~\ref{fig:app_jacobian_time} shows the per-target inference-time distribut
   \includegraphics[width=0.95\linewidth]{fig/jacobian_inference_time.pdf}
   \caption[Per-target inference-time distributions: Jacobian-IK vs MLP.]{Distribution of per-target wall-clock inference time for the warm-started (MLP-initialised) Jacobian-learned iteration (blue histogram) and the feed-forward MLP baseline (red vertical line) on Dataset~2 (left) and Dataset~1 (right). The horizontal axis is logarithmic (milliseconds). Jacobian means are $45.89$\,ms on Dataset~2 and $46.70$\,ms on Dataset~1, against $0.055$\,ms and $0.056$\,ms for the MLP respectively; the Jacobian iteration is therefore roughly $830\times$ slower than the direct regressor on both platforms.}
   \label{fig:app_jacobian_time}
-\end{figure}
-
-The remaining figures and tables in this section were moved from Chapter~\ref{chap:results} to keep the main-body page budget; the main-text prose that references them explains the empirical context in each case.
-
-\begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=0.75\linewidth]{fig/ds1_seed0_repeatability.pdf}
-  \caption[Seed-0 repeatability distribution for Dataset~1.]{Per-sample tip-position standard deviation across the three repetitions of the Dataset~1 seed-0 recording, with frames paired by nearest neighbour in the six-dimensional pressure-command space. The bulk of the distribution falls below $5$\,mm; the long tail past $10$\,mm is driven by isolated frames located near occlusion gaps. Used to establish the $\sim\!2.3$\,mm physical noise floor cited in Section~\ref{sec:eda_ds1}.}
-  \label{fig:app_ds1_repeatability}
-\end{figure}
-
-\begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=0.7\linewidth]{fig/pcc_error_distribution.pdf}
-  \caption[Forward-residual distribution of the single-segment PCC on Dataset~2.]{Distribution of the per-target forward residual of the single-segment PCC baseline on the $1{,}385$ reachable targets of the Dataset~2 test set (Section~\ref{sec:res_pcc_single}). The mean ($22.67$\,mm) and $95$th percentile ($48.70$\,mm) are marked. No target reaches the $\sim\!2.3$\,mm Dataset~1 marker-noise floor, so the distribution is dominated by model error rather than by measurement noise.}
-  \label{fig:app_pcc_error}
-\end{figure}
-
-\begin{table}[!htbp]
-  \centering
-  \small
-  \caption[Frame-transform diagnostic for the single-segment PCC on Dataset~2.]{Effect of three frame transforms on the reachability and forward residual of the single-segment PCC baseline on the Dataset~2 validation split (Section~\ref{sec:res_pcc_single}). The flip-and-translation variant lifts the reachable fraction from $51.2\%$ to $99.6\%$ but leaves the forward residual near $20$\,mm, showing that frame misalignment is not the limiting factor.}
-  \label{tab:app_res_pcc_frame}
-  \begin{tabularx}{\linewidth}{@{}l X X X@{}}
-    \toprule
-    Frame variant               & $L_0$ (mm) & Reachable fraction & Forward residual mean (mm) \\
-    \midrule
-    Raw                         & $67.24$    & $51.2\%$           & $22.24$                    \\
-    Translation                 & $73.37$    & $84.2\%$           & $24.29$                    \\
-    Flip and translation        & $70.44$    & $99.6\%$           & $20.50$                    \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
-
-\begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=\linewidth]{fig/pcc_multi_error_compare.pdf}
-  \caption[Two-segment PCC versus feed-forward network on Dataset~1.]{Two-segment PCC (blue) versus the tip-only feed-forward network (orange) on the Dataset~1 test split (Section~\ref{sec:res_pcc_multi}). (a) Log-scale histogram of the per-target closed-loop position error. (b) Per-chamber absolute pressure residual against the ground-truth command. The two closed-loop distributions are well separated by about half a decade, and the PCC per-chamber residuals sit uniformly above the feed-forward residuals on every chamber, consistent with a calibration that regresses to the per-chamber mean.}
-  \label{fig:app_pcc_multi_compare}
-\end{figure}
-
-\begin{table}[!htbp]
-  \centering
-  \small
-  \caption[LSTM window-length sweep on both datasets.]{Effect of the recurrent window length $K$ on the LSTM test-set MAE (Section~\ref{sec:res_lstm}). The best-epoch column reports the validation-selected epoch at which early stopping triggered.}
-  \label{tab:app_res_lstm_sweep}
-  \begin{tabularx}{\linewidth}{@{}l X X X X@{}}
-    \toprule
-    Dataset and input              & $K$  & MAE       & $R^{2}$ & Best epoch \\
-    \midrule
-    Dataset 1, tip-only             & $5$  & $20.50$    & $0.284$  & $15$        \\
-    Dataset 1, tip-only             & $10$ & $21.00$    & $0.283$  & $2$         \\
-    Dataset 1, tip-only             & $20$ & $21.11$    & $0.290$  & $1$         \\
-    \midrule
-    Dataset 2, tip-only             & $5$  & $148.05$   & $0.929$  & $19$        \\
-    Dataset 2, tip-only             & $10$ & $143.08$   & $0.931$  & $14$        \\
-    Dataset 2, tip-only             & $20$ & $138.68$   & $0.934$  & $16$        \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
-
-\begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=0.85\linewidth]{fig/lstm_window_sweep.pdf}
-  \caption[LSTM test MAE against window length on each dataset.]{Test-set pressure MAE of the LSTM against window length $K$ on each dataset (Section~\ref{sec:res_lstm}). Dataset~2 (right) benefits monotonically from longer windows; Dataset~1 (left) does not benefit, and the best-epoch index collapses as $K$ grows, consistent with faster over-fitting when the added context carries no generalisable signal.}
-  \label{fig:app_res_lstm_sweep}
-\end{figure}
-
-\begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=0.85\linewidth]{fig/jacobian_convergence.pdf}
-  \caption[Jacobian-IK convergence trajectories on ten Dataset~2 targets.]{Per-iteration position error of the warm-started Jacobian-learned iteration on ten Dataset~2 test targets selected by quantile of final error (Section~\ref{sec:res_jacobian}). The horizontal dashed line marks the $1$\,mm convergence tolerance. Nine of the ten targets drop below the tolerance within about ten iterations and then oscillate at the floor of the DLS step; the worst-quantile target plateaus above the tolerance and is typical of the small non-converged fraction.}
-  \label{fig:app_jacobian_convergence}
-\end{figure}
-
-\begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=0.95\linewidth]{fig/sim_calibration.pdf}
-  \caption[Young's-modulus calibration against the two I-Support anchors.]{Measured bending angle (left) and axial elongation (right) against Young's modulus $E$, across the twenty-point logarithmic grid of Section~\ref{sec:sim_setup}. Horizontal dashed lines mark the I-Support anchors ($118^{\circ}$ and $85\%$, from Manti et al.\ \cite{manti2016soft}); the vertical dotted line marks the calibrated value $E = 8.86 \times 10^{4}$\,Pa.}
-  \label{fig:app_sim_cal}
 \end{figure}
 
 \section{Reproducibility}

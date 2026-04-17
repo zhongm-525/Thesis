@@ -163,9 +163,53 @@ The analytical PCC baselines of Sections~\ref{sec:pcc_single}--\ref{sec:pcc_mult
 \subsection{Tip-only MLP: architecture and training}
 \label{sec:mlp_tip}
 
-The network was a fully connected multilayer perceptron with four hidden layers and ReLU activations between hidden layers; no dropout or weight decay was applied. The input was the base-relative tip position $(x, y, z)$ in millimetres (three features) and the output was the actuation command vector: three valve commands for Dataset 2 and six chamber pressures for Dataset 1. The hidden widths were $[128, 256, 256, 128]$ for Dataset 1 and $[64, 128, 128, 64]$ for Dataset 2; the larger network was allocated to Dataset 1 because its output space is higher-dimensional and its training split is larger. Trainable parameter counts are $132{,}998$ (Dataset 1 tip-only), $33{,}539$ (Dataset 2 tip-only), and $133{,}382$ (Dataset 1 tip-plus-mid). All learning-rate, batch, epoch-cap, early-stopping, and seed values used across the three feed-forward variants, together with the LSTM and forward-kinematics networks of the later sections, are consolidated in Appendix~\ref{app:hyperparameters} Table~\ref{tab:app_hyperparams_networks} to avoid duplicating the same configuration across the chapter.
+The network was a fully connected multilayer perceptron. The input was the base-relative tip position $(x, y, z)$ in millimetres (three features), and the output was the actuation command vector: three valve commands for Dataset 2 and six chamber pressures for Dataset 1. Four hidden layers were used, each followed by a ReLU activation; no dropout or weight decay was applied. The hidden widths were set to $[128, 256, 256, 128]$ for Dataset 1 and $[64, 128, 128, 64]$ for Dataset 2. The larger network was allocated to Dataset 1 because its output space is higher-dimensional (six chambers rather than three) and its training split is larger. Fig~\ref{fig:mlp_arch} shows the topology schematically, and Table~\ref{tab:mlp_config} lists the per-variant dimensions and the resulting trainable-parameter counts.
 
-Training used the mean squared error (MSE) loss on the z-score--standardised outputs, with the standardisation fitted on the training split only (Section~\ref{sec:splits}). Parameter updates used Adam at learning rate $10^{-3}$ and batch size $64$; training was capped at $500$ epochs with early stopping on the validation loss (patience $30$), and the lowest-validation-loss checkpoint was retained for all reported test metrics.
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  layer/.style   = {draw, rounded corners=1pt, minimum width=16mm, minimum height=10mm, font=\small, align=center},
+  hidden/.style  = {layer, fill=blue!8},
+  inout/.style   = {layer, fill=gray!12},
+  arr/.style     = {-{Stealth[length=2mm,width=1.6mm]}, shorten >=1pt, shorten <=1pt},
+  edgelbl/.style = {font=\scriptsize, midway, above=-0.5mm}
+]
+\node[inout] (in) {Input\\{\scriptsize $d_{\text{in}}$}};
+\node[hidden, right=6mm of in] (h1) {Linear\\{\scriptsize $h_1$}};
+\node[hidden, right=6mm of h1] (h2) {Linear\\{\scriptsize $h_2$}};
+\node[hidden, right=6mm of h2] (h3) {Linear\\{\scriptsize $h_3$}};
+\node[hidden, right=6mm of h3] (h4) {Linear\\{\scriptsize $h_4$}};
+\node[inout, right=6mm of h4] (out) {Linear\\{\scriptsize $d_{\text{out}}$}};
+
+\draw[arr] (in) -- (h1);
+\draw[arr] (h1) -- node[edgelbl] {ReLU} (h2);
+\draw[arr] (h2) -- node[edgelbl] {ReLU} (h3);
+\draw[arr] (h3) -- node[edgelbl] {ReLU} (h4);
+\draw[arr] (h4) -- node[edgelbl] {ReLU} (out);
+\end{tikzpicture}
+\caption[Schematic of the feed-forward MLP architecture.]{Schematic of the feed-forward MLP used for the tip-only and tip-plus-mid inverse-kinematics variants. All three configurations share the same five-linear-layer topology with ReLU activations between hidden layers; the input dimension $d_{\text{in}}$, output dimension $d_{\text{out}}$, and hidden widths $(h_1, h_2, h_3, h_4)$ are listed in Table~\ref{tab:mlp_config}.}
+\label{fig:mlp_arch}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\caption[MLP configurations for the feed-forward inverse-kinematics variants.]{MLP input--output dimensions and hidden widths for the three feed-forward inverse-kinematics variants. The training protocol (MSE loss on standardised outputs, Adam optimiser at learning rate $10^{-3}$, batch size $64$, up to $500$ epochs with early stopping on the validation loss after $30$ epochs without improvement, no dropout or weight decay, and random seed $42$) is shared across all three variants.}
+\label{tab:mlp_config}
+\begin{tabularx}{\linewidth}{@{}l X X X@{}}
+\toprule
+                 & Tip-only, Dataset 1          & Tip-only, Dataset 2        & Tip-plus-mid, Dataset 1       \\
+\midrule
+Input features   & tip $(x, y, z)$              & tip $(x, y, z)$            & tip + mid ($6$ coordinates)   \\
+Input dim        & 3                            & 3                          & 6                             \\
+Output           & 6 chamber pressures          & 3 valve commands           & 6 chamber pressures           \\
+Output dim       & 6                            & 3                          & 6                             \\
+Hidden widths    & $[128, 256, 256, 128]$       & $[64, 128, 128, 64]$       & $[128, 256, 256, 128]$        \\
+Trainable parameters & $132{,}998$              & $33{,}539$                 & $133{,}382$                   \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Training used the mean squared error (MSE) loss on the z-score--standardised outputs, the standardisation having been fitted on the training split only (Section~\ref{sec:splits}). Parameter updates used the Adam optimiser with learning rate $10^{-3}$, batch size $64$, and no weight decay. Training was capped at $500$ epochs with early stopping on the validation loss, triggered after $30$ consecutive epochs without improvement. The checkpoint with the lowest validation loss was retained for all reported test metrics.
 
 Test-set predictions were de-standardised through the stored output scaler before any error metric was computed. Four metrics were reported: mean absolute error (MAE) in the original actuation units; mean absolute percentage error (MAPE) computed on samples whose ground-truth pressure exceeded $1\%$ of the command-range maximum, to avoid divide-by-near-zero; normalised MAE (NMAE) expressed as a percentage of the command-range maximum; and the coefficient of determination $R^{2}$. Inference latency was measured as the wall-clock time to predict a single sample on the CPU.
 
@@ -190,8 +234,58 @@ Dataset 1 was the primary target of this experiment, since its recordings are co
 \paragraph{Sliding-window construction.}
 Let $K$ denote the window length in frames. Each training example was a contiguous window of $K$ frames of the same input features used by the feed-forward networks (tip-only, or tip-plus-mid for the Dataset 1 ablation), with the actuation command at the $K$-th (last) frame taken as its label. Windows were constrained to remain within a single recording in Dataset 1 and within a single split in Dataset 2, so that no window crossed a recording boundary or the train/validation/test boundary (Section~\ref{sec:splits}). The z-score standardisation of Section~\ref{sec:splits} was applied to the flat frame data before windowing, so that the per-feature mean and variance stayed identical to those of the corresponding feed-forward run. The first $K-1$ frames of each recording or split therefore had no label and were dropped; the same truncation was applied to the validation and test sets to keep inputs and labels aligned.
 
-\paragraph{Architecture and training.}
-Two LSTM layers \cite{hochreiter1997lstm} were stacked on the windowed input with $128$ hidden units per layer and no recurrent dropout; the hidden state at the last time step of the second layer was projected to the actuation space by a single linear head. The hidden width and depth were kept identical across the three variants (tip-only Dataset~1, tip-only Dataset~2, tip-plus-mid Dataset~1), which differ only in the input and output dimensions. Trainable-parameter counts are $200{,}966$, $200{,}579$, and $202{,}502$ respectively; the per-variant dimensions together with the complete learning-rate, batch, epoch-cap, and early-stopping values are consolidated in Appendix~\ref{app:hyperparameters} Table~\ref{tab:app_hyperparams_networks}. Training used the MSE loss on z-score--standardised outputs with Adam at learning rate $10^{-3}$ and batch size $64$; training was capped at $300$ epochs with early stopping on the validation loss (patience $20$), and the lowest-validation-loss checkpoint was retained.
+\paragraph{Architecture.}
+Two LSTM layers \cite{hochreiter1997lstm} were stacked on the windowed input, with $128$ hidden units per layer and no recurrent dropout. The hidden state at the last time step of the second layer was projected to the actuation space by a single linear head. Input and output dimensions matched the feed-forward setup: three inputs and three outputs for the Dataset 2 variant; three inputs and six outputs for the Dataset 1 tip-only variant; and six inputs and six outputs for the Dataset 1 tip-plus-mid variant. The hidden width and depth were kept identical across the three configurations. Fig~\ref{fig:lstm_arch} shows the topology schematically, and Table~\ref{tab:lstm_config} lists the per-variant dimensions and trainable-parameter counts.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  layer/.style   = {draw, rounded corners=1pt, minimum width=16mm, minimum height=10mm, font=\small, align=center},
+  lstm/.style    = {layer, fill=green!10},
+  take/.style    = {layer, fill=blue!8},
+  head/.style    = {layer, fill=orange!12},
+  inout/.style   = {layer, fill=gray!12},
+  arr/.style     = {-{Stealth[length=2mm,width=1.6mm]}, shorten >=1pt, shorten <=1pt}
+]
+\node[inout] (in) {Input\\{\scriptsize $K \times d_{\text{in}}$}};
+\node[lstm, right=6mm of in] (l1) {LSTM\\{\scriptsize $128$}};
+\node[lstm, right=6mm of l1] (l2) {LSTM\\{\scriptsize $128$}};
+\node[take, right=6mm of l2] (last) {Last step\\{\scriptsize $128$}};
+\node[head, right=6mm of last] (h) {Linear};
+\node[inout, right=6mm of h] (out) {Output\\{\scriptsize $d_{\text{out}}$}};
+
+\draw[arr] (in) -- (l1);
+\draw[arr] (l1) -- (l2);
+\draw[arr] (l2) -- (last);
+\draw[arr] (last) -- (h);
+\draw[arr] (h) -- (out);
+\end{tikzpicture}
+\caption[Schematic of the LSTM architecture.]{Schematic of the recurrent architecture used for temporal inverse kinematics. A window of $K$ consecutive frames (each of dimension $d_{\text{in}}$) is passed through two stacked LSTM layers of $128$ hidden units; the hidden state at the final time step of the second layer is projected to the $d_{\text{out}}$-dimensional actuation space by a linear head.}
+\label{fig:lstm_arch}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\caption[LSTM configurations for the three recurrent variants.]{LSTM input--output dimensions, window length, and trainable-parameter counts for the three recurrent variants. All three share the same architecture (two LSTM layers of $128$ hidden units, linear head on the last-step hidden state) and the same training protocol (MSE loss on standardised outputs, Adam at learning rate $10^{-3}$, batch size $64$, up to $300$ epochs with early stopping on the validation loss after $20$ epochs without improvement, random seed $42$).}
+\label{tab:lstm_config}
+\begin{tabularx}{\linewidth}{@{}l X X X@{}}
+\toprule
+                      & Tip-only, Dataset 1    & Tip-only, Dataset 2    & Tip-plus-mid, Dataset 1 \\
+\midrule
+Input features        & tip $(x,y,z)$          & tip $(x,y,z)$          & tip + mid ($6$ coordinates) \\
+Input dim             & 3                       & 3                       & 6 \\
+Output                & 6 chamber pressures    & 3 valve commands        & 6 chamber pressures \\
+Output dim            & 6                       & 3                       & 6 \\
+Window length $K$     & 10                      & 10                      & 10 \\
+Hidden size           & 128                     & 128                     & 128 \\
+Number of layers      & 2                       & 2                       & 2 \\
+Trainable parameters  & $200{,}966$             & $200{,}579$             & $202{,}502$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Training protocol.}
+Training used the mean squared error loss on the z-score--standardised outputs, matching the feed-forward setup. Parameters were updated with the Adam optimiser at learning rate $10^{-3}$, batch size $64$, and no weight decay. Training was capped at $300$ epochs with early stopping on the validation loss after $20$ consecutive epochs without improvement. The checkpoint with the lowest validation loss was retained for evaluation.
 
 \paragraph{Window-length sweep.}
 The window length $K$ trades coverage of past frames against overfitting risk (a longer window increases the input sequence length without changing the label rate). Three settings were evaluated on each dataset, $K \in \{5, 10, 20\}$, with all other hyperparameters held at their primary values. On Dataset 1, the sweep tested whether any hysteresis signal is captured within the first $0.25$\,s to $1$\,s of context at a $20$\,Hz sampling rate. On Dataset 2, the sweep served as a check on the exploratory-analysis finding of no meaningful temporal structure (Section~\ref{sec:eda}).
@@ -205,7 +299,25 @@ The test-set metrics reported for the recurrent variants were the same four as f
 Direct regression from tip to pressure (Section~\ref{sec:mlp}) collapses multiple valid solution branches into a single averaged output, which lowers the reported mean pressure error but can drive the tip away from the target when the prediction is fed back to the forward map. A Jacobian-based alternative avoids the averaging by learning only the forward map (pressure $\to$ tip position) and inverting it iteratively at run time; each target commits to a single solution near its initialisation rather than blending several solution branches. The approach follows Fang et al.\ \cite{fang2022jacobian}, who proposed this scheme as an efficient IK solver for soft robots with sim-to-real transfer.
 
 \paragraph{Forward-kinematics network.}
-A feed-forward network $f_{\theta}: \mathbb{R}^{n_p} \to \mathbb{R}^{3}$ was trained to predict the base-relative tip position from the actuation command, where $n_p = 3$ for Dataset~2 and $n_p = 6$ for Dataset~1. The architecture, hidden widths, and training protocol were inherited unchanged from the feed-forward inverse-kinematics networks of Section~\ref{sec:mlp_tip}; only the input and output roles were swapped (giving $132{,}995$ trainable parameters on Dataset~1 and $33{,}539$ on Dataset~2). The full FK-arbiter configuration is the final pair of rows in Appendix~\ref{app:hyperparameters} Table~\ref{tab:app_hyperparams_networks}. The network was trained in isolation and its weights were frozen for the entire inverse-kinematics iteration; joint training of the forward and inverse models would collapse the benefit of the two-stage design \cite{fang2022jacobian}.
+A feed-forward network $f_{\theta}: \mathbb{R}^{n_p} \to \mathbb{R}^{3}$ was trained to predict the base-relative tip position from the actuation command, where $n_p = 3$ for Dataset 2 and $n_p = 6$ for Dataset 1. The architecture (four hidden layers with ReLU activations), hidden widths, and training protocol were inherited unchanged from the feed-forward inverse-kinematics networks of Section~\ref{sec:mlp_tip}; only the input and output roles were swapped. Table~\ref{tab:fk_config} lists the per-dataset dimensions and parameter counts. The network was trained in isolation and its weights were frozen for the entire inverse-kinematics iteration; joint training of the forward and inverse models would collapse the benefit of the two-stage design \cite{fang2022jacobian}.
+
+\begin{table}[ht]
+\centering
+\caption[Forward-kinematics network configurations.]{Forward-kinematics networks used by the Jacobian-learned inverse kinematics. The training protocol is inherited from the feed-forward inverse-kinematics networks of Section~\ref{sec:mlp_tip} (MSE loss on standardised outputs, Adam at learning rate $10^{-3}$, batch size $64$, up to $500$ epochs with early stopping on the validation loss after $30$ epochs without improvement, and random seed $42$).}
+\label{tab:fk_config}
+\begin{tabularx}{\linewidth}{@{}l X X@{}}
+\toprule
+                      & Dataset 1                       & Dataset 2                     \\
+\midrule
+Input                 & 6 chamber pressures             & 3 valve commands              \\
+Output                & tip $(x, y, z)$, mm             & tip $(x, y, z)$, mm           \\
+Input dim $n_p$       & 6                               & 3                             \\
+Output dim            & 3                               & 3                             \\
+Hidden widths         & $[128, 256, 256, 128]$          & $[64, 128, 128, 64]$          \\
+Trainable parameters  & $132{,}995$                     & $33{,}539$                    \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \paragraph{Iterative inverse.}
 Given a target tip position $\mathbf{x}^{*} \in \mathbb{R}^{3}$ and a current pressure estimate $\mathbf{p}_k \in \mathbb{R}^{n_p}$, the iterate was updated by
@@ -269,7 +381,31 @@ applied uniformly along the rod about the axis $\mathbf{a}_i = (-\sin\theta_i,\,
 \begin{equation}
   L_{\mathrm{rest}}(\mathbf{P}) = L_0 \bigl( 1 + k_L \bar{P} \bigr), \qquad k_L = 7.5 \times 10^{-6}\,\mathrm{Pa}^{-1}. \label{eq:sim_stretch}
 \end{equation}
-Representing elongation as a change of the rest configuration, rather than as an axial tip force, avoids artificially stiffening the rod against the bending moments of Eq.~\eqref{eq:sim_moment}. This decoupling allows the two I-Support behavioural anchors---bending at a single chamber and pure elongation at all three chambers---to be matched by independent choices of $k_m$ and $k_L$. The coupling constants were fixed manually at $k_m = 1.5 \times 10^{-5}$\,N\,m\,Pa$^{-1}$ and $k_L = 7.5 \times 10^{-6}$\,Pa$^{-1}$ so that both anchors remained reachable within the feasible range $E \in [10^{4}, 10^{6}]$\,Pa; only $E$ was calibrated. The rod geometry and material values follow Manti et al.\ \cite{manti2016soft} ($L_0 = 205$\,mm, $r = 30$\,mm, $n = 50$ Cosserat elements, $\rho = 1100$\,kg\,m$^{-3}$, $\nu = 0.5$); the integrator uses a position-Verlet stepper at $\Delta t = 10^{-5}$\,s over $T = 3.0$\,s with a damping constant of $3.0$ and gravity $9.81$\,m\,s$^{-2}$. Full simulator parameters are consolidated in Appendix~\ref{app:hyperparameters} Table~\ref{tab:app_sim_params}. Fig~\ref{fig:sim_rod} visualises the calibrated rod under four canonical actuations.
+Representing elongation as a change of the rest configuration, rather than as an axial tip force, avoids artificially stiffening the rod against the bending moments of Eq.~\eqref{eq:sim_moment}. This decoupling allows the two I-Support behavioural anchors---bending at a single chamber and pure elongation at all three chambers---to be matched by independent choices of $k_m$ and $k_L$. The coupling constants were fixed manually at the values above so that both anchors remained reachable within the feasible range $E \in [10^{4}, 10^{6}]$\,Pa; only $E$ was calibrated. Table~\ref{tab:sim_params} lists the full set of simulator parameters, and Fig~\ref{fig:sim_rod} visualises the calibrated rod under four canonical actuations.
+
+\begin{table}[ht]
+\centering
+\caption[Simulator parameters for the PyElastica I-Support rod.]{Parameters of the PyElastica single-module Cosserat rod. Geometric and material values follow Manti et al.\ \cite{manti2016soft}; Alessi et al.\ \cite{alessi2024pushing} Table~1 reports a slightly updated AM-variant geometry ($L = 190$\,mm, actuator-centroid offset $\delta = 20$\,mm, module mass $m = 0.170$\,kg) that would be the natural reference for a DS1-faithful re-calibration (Chapter~\ref{chap:future_work}). The coupling constants $k_m$ and $k_L$ were fixed manually as described in the text; Young's modulus $E$ was calibrated against the two I-Support anchors below. The calibrated $E$ is an \emph{effective} bending stiffness of the single Cosserat rod, not the TPU material modulus ($\approx 400$\,MPa, \cite{centurelli2022closed}); it absorbs the helicoidal reinforcement and chamber non-uniformity that the reduced-order rod does not represent \cite{dellasantina2018dynamic}.}
+\label{tab:sim_params}
+\begin{tabularx}{\linewidth}{@{}l l X@{}}
+\toprule
+Parameter                      & Symbol       & Value                                     \\
+\midrule
+Rest length                    & $L_0$        & $205$\,mm                                 \\
+Cross-section radius           & $r$          & $30$\,mm                                  \\
+Number of Cosserat elements    & $n$          & $50$                                      \\
+Density                        & $\rho$       & $1100$\,kg\,m$^{-3}$                      \\
+Poisson's ratio                & $\nu$        & $0.5$                                     \\
+Young's modulus                & $E$          & calibrated (see below)                    \\
+Moment coupling                & $k_m$        & $1.5 \times 10^{-5}$\,N\,m\,Pa$^{-1}$     \\
+Strain coupling                & $k_L$        & $7.5 \times 10^{-6}$\,Pa$^{-1}$           \\
+Gravitational acceleration     & $g$          & $9.81$\,m\,s$^{-2}$                       \\
+Integration step size          & $\Delta t$   & $10^{-5}$\,s                              \\
+Total integration time         & $T$          & $3.0$\,s                                  \\
+Damping constant               & $c$          & $3.0$                                     \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \begin{figure}[ht]
 \centering
@@ -291,7 +427,7 @@ and the value that minimised $\mathcal{L}$ was retained. The calibration was acc
 The calibrated rod of Section~\ref{sec:sim_setup} was used as a source of synthetic $(\mathbf{P}, \mathbf{x})$ training data, which was then combined with Dataset 2 under three training strategies. The aim of the experiment was to quantify the transfer value of the simulator prior at several real-data budgets, rather than to produce a best-performing model on Dataset 2.
 
 \paragraph{Synthetic data generation.}
-Chamber-pressure triples $(P_1, P_2, P_3)$ were sampled independently and uniformly in $[0, 1.2]$\,bar with a fixed random seed of $42$. For each triple, the calibrated rod was run to static equilibrium under the settings of Table~\ref{tab:app_sim_params} and its tip position was recorded. A total of $800$ $(\mathbf{P}, \mathbf{x})$ pairs were generated and split into $720$ training and $80$ validation samples, with tip positions in millimetres. The synthetic chamber pressures were rescaled from pascals to the raw command range of Dataset 2, so that the synthetic output scale matched the target-domain scale. The sample count was capped at $800$ rather than the originally planned tens of thousands because a fully settled simulation at the calibrated settings takes several seconds of wall-clock time per sample, and a larger budget was not feasible on the available workstation.
+Chamber-pressure triples $(P_1, P_2, P_3)$ were sampled independently and uniformly in $[0, 1.2]$\,bar with a fixed random seed of $42$. For each triple, the calibrated rod was run to static equilibrium under the settings of Table~\ref{tab:sim_params} and its tip position was recorded. A total of $800$ $(\mathbf{P}, \mathbf{x})$ pairs were generated and split into $720$ training and $80$ validation samples, with tip positions in millimetres. The synthetic chamber pressures were rescaled from pascals to the raw command range of Dataset 2, so that the synthetic output scale matched the target-domain scale. The sample count was capped at $800$ rather than the originally planned tens of thousands because a fully settled simulation at the calibrated settings takes several seconds of wall-clock time per sample, and a larger budget was not feasible on the available workstation.
 
 \paragraph{Training strategies.}
 Three data-combination strategies were compared (Table~\ref{tab:sim_strategies}). All three used the same feed-forward network as the tip-only inverse-kinematics variant on Dataset 2 (Section~\ref{sec:mlp_tip}): a four-hidden-layer MLP with widths $[64, 128, 128, 64]$, ReLU activations, an MSE loss on z-score--standardised inputs and outputs, Adam with batch size $64$, and the early-stopping policy of Section~\ref{sec:mlp_tip} unless stated otherwise.
@@ -360,7 +496,9 @@ which approximates the integral of squared jerk and penalises methods whose pred
 \subsection{Hardware, software, and reproducibility}
 \label{sec:reproducibility}
 
-A fixed random seed of $42$ governed all stochastic operations, including scaler fitting, mini-batch shuffling within a single Dataset~1 seed, and weight initialisation; the PyTorch cuDNN backend ran in deterministic mode with auto-benchmarking disabled so that GPU kernel selection did not introduce run-to-run variation. Fitted input and output scalers, the configuration file, the git commit hash, and the timestamp of each training run were stored alongside the weights in the checkpoint metadata, so any reported number can be traced back to the code state that produced it. The full hardware and software environment (CPU, GPU, Python and library versions, and checkpoint layout) is listed in Appendix~\ref{app:reproducibility}.
+All training and evaluation reported in this thesis were carried out on a single workstation running Linux. The hardware was an Intel Core i7-13650HX CPU with $16$\,GB of RAM and an NVIDIA GeForce RTX 4060 Laptop GPU. The software stack comprised Python $3.11$, PyTorch $2.11$ with CUDA $12.6$, NumPy, pandas, scikit-learn, SciPy, and PyElastica \cite{gazzola2018pyelastica}. Scikit-learn provided the z-score scalers and the nonparametric paired-test utilities; SciPy provided the SLSQP solver used by the two-segment PCC inverse kinematics (Section~\ref{sec:pcc_multi}); and PyElastica provided the Cosserat rod integrator used by the I-Support simulator (Section~\ref{sec:sim_setup}).
+
+A fixed random seed of $42$ governed all stochastic operations, including scaler fitting order, mini-batch shuffling within a single Dataset 1 seed, and weight initialisation. The PyTorch cuDNN backend was set to deterministic mode with auto-benchmarking disabled, so that GPU kernel selection did not introduce run-to-run variation. Fitted input and output scalers were stored inside the model checkpoint metadata, so inference could be reproduced without recomputing dataset statistics. Each checkpoint also recorded the configuration file, the git commit hash, and the timestamp of the training run, so any reported number can be traced back to the exact code state that produced it.
 
 \subsection{Hyperparameter selection}
 \label{sec:hyperparam}
