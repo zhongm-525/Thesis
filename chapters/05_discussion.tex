@@ -31,7 +31,7 @@ Table~\ref{tab:disc_benchmarks} positions this thesis against three reference po
 
 \begin{table}[ht]
 \centering
-\caption[Position-space tracking error against published baselines.]{Position-space tracking error for three published reference points and the two best configurations of this thesis, normalised by the rest length of the corresponding arm. The $280$\,mm length is taken from Giorelli et al.\ \cite{giorelli2015nn}; the $410$\,mm assembled length of the I-Support arm is taken from Manti et al.\ \cite{manti2016soft}; the $100$\,mm workspace of Dataset 2 is the observed tip span after preprocessing (Section~\ref{sec:eda_findings}) and is used in lieu of a documented arm length. Entries marked ``---'' indicate metrics that the source did not report in directly comparable form.}
+\caption[Position-space tracking error against published baselines.]{Position-space tracking error for three published reference points and the two best configurations of this thesis, normalised by the rest length of the corresponding arm. The $280$\,mm length is taken from Giorelli et al.\ \cite{giorelli2015nn}; the $410$\,mm assembled length of the I-Support arm is taken from Manti et al.\ \cite{manti2016soft}; the $100$\,mm workspace of Dataset 2 is the observed tip span and is used in lieu of a documented arm length. Entries marked ``---'' indicate metrics that the source did not report in directly comparable form.}
 \label{tab:disc_benchmarks}
 \begin{tabularx}{\linewidth}{@{}l X X X X@{}}
 \toprule
@@ -40,8 +40,8 @@ Source                                              & Platform                  
 Giorelli et al.\ \cite{giorelli2015nn}               & $280$\,mm cable arm            & Analytical Jacobian          & $15.12$             & $5.40$                  \\
 Giorelli et al.\ \cite{giorelli2015nn}               & $280$\,mm cable arm            & Feed-forward network         & $7.35$              & $2.62$                  \\
 Fang et al.\ \cite{fang2022jacobian}                 & pneumatic soft robot           & Learned-Jacobian iteration   & sub-mm              & ---                     \\
-This thesis, Dataset 1 (Section~\ref{sec:res_traj})   & $410$\,mm I-Support            & Jacobian-learned iteration   & $0.77$              & $0.19$                  \\
-This thesis, Dataset 2 (Section~\ref{sec:res_traj})   & $\sim\!100$\,mm three-valve arm & Sim-to-real feed-forward     & $6.20$              & $6.20$                  \\
+This thesis, Dataset 1                               & $410$\,mm I-Support            & Jacobian-learned iteration   & $0.77$              & $0.19$                  \\
+This thesis, Dataset 2                               & $\sim\!100$\,mm three-valve arm & Sim-to-real feed-forward     & $6.20$              & $6.20$                  \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -69,7 +69,7 @@ The mid-marker centroid adds three observations that, under PCC, identify the se
 \paragraph{Temporal context amplifies the mid-marker signal, not the tip.}
 Tip-only LSTM is marginally \emph{worse} than tip-only MLP on Dataset~1 ($R^{2}$ $0.32 \to 0.28$); tip-plus-mid LSTM reaches $R^{2} = 0.51$ ($+17\%$ over tip-plus-mid MLP). Historical tip samples cannot pin the internal state; once the mid marker does, the recurrent network extracts the internal-state trajectory, which carries velocity and hysteresis information. Temporal modelling is thus contingent on the features already resolving under-identification.
 
-The mid-marker benefit is contingent on a real mid-marker signal at deployment: the trajectory evaluation of Section~\ref{sec:res_traj} substituted the training-distribution centroid and the network extrapolated off its training slice to $19.08$\,mm mean tracking error (the worst Dataset~1 entry in Table~\ref{tab:res_overall_ds1}), so any controller intending to use a tip-plus-mid network would need a running shape estimator of comparable quality.
+The mid-marker benefit is contingent on a real mid-marker signal at deployment: the trajectory evaluation substituted the training-distribution centroid and the network extrapolated off its training slice to $19.08$\,mm mean tracking error (the worst Dataset~1 entry in Table~\ref{tab:res_overall_ds1}), so any controller intending to use a tip-plus-mid network would need a running shape estimator of comparable quality.
 
 \section{Temporal modelling and hysteresis}
 \label{sec:disc_temporal}
@@ -77,7 +77,7 @@ The mid-marker benefit is contingent on a real mid-marker signal at deployment: 
 Only tip-plus-mid on Dataset~1 shows a clean gain ($R^{2}$ $0.44 \to 0.51$). Tip-only Dataset~1 is marginally worse; tip-only Dataset~2 is marginally better ($-4.8\%$ MAE). On smooth trajectories all recurrent and feed-forward variants sit within $1$\,mm of each other. The uniform benefit expected from hysteresis-dominated residual is not observed.
 
 \paragraph{Why tip-only fails on DS1.}
-Tip velocity across a window cannot identify the per-segment bending split (multi-valued inverse; §\ref{sec:disc_mid}). The recurrent network receives a richer input with no reduction in under-identification and collapses to the same posterior mean; best-epoch index falls from $15$ ($K=5$) to $1$ ($K=20$), consistent with accelerated over-fitting rather than signal recovery.
+Tip velocity across a window cannot identify the per-segment bending split (multi-valued inverse). The recurrent network receives a richer input with no reduction in under-identification and collapses to the same posterior mean; best-epoch index falls from $15$ ($K=5$) to $1$ ($K=20$), consistent with accelerated over-fitting rather than signal recovery.
 
 \paragraph{Why tip-plus-mid benefits.}
 Once the mid marker pins internal state at every frame, the $K$-frame window carries internal-state velocity and acceleration. The $R^{2}$ $0.44 \to 0.51$ magnitude suggests a hysteretic signal is present but not dominant; a structured temporal protocol or a Preisach/Bouc-Wen parametrisation would be needed to isolate it.
@@ -86,9 +86,9 @@ Once the mid marker pins internal state at every frame, the $K$-frame window car
 Alessi et al.\ \cite{alessi2024pushing} Table~1 report asymmetric AM-I-Support transients ($0.2$\,s pressurisation / $0.56$\,s depressurisation), which at DS1's $20$\,Hz correspond to $\sim$$4$ / $\sim$$11$ frames---above the single-frame MLP's horizon but within $K \geq 10$ of the LSTM. Empirical cross-correlation on DS1 (Fig~\ref{fig:app_ds1_lag}) gives a median lag of $13$ frames with chamber~$5$ peaking at $0.25$\,s ($R = 0.87$), consistent with Alessi's pressurisation value to within one frame.
 
 \paragraph{Why DS2 benefits only marginally.}
-DS2 is IID (step-size ratio $1.00$/$0.96$; §\ref{sec:eda_findings}); the $4.8\%$ MAE reduction cannot reflect captured hysteresis. A regularisation story fits better: neighbouring rows with similar tips supply local averaging, giving the monotone MAE improvement with longer $K$ ($148.05 \to 138.68$) without any genuine temporal signal.
+DS2 is IID (step-size ratio $1.00$/$0.96$); the $4.8\%$ MAE reduction cannot reflect captured hysteresis. A regularisation story fits better: neighbouring rows with similar tips supply local averaging, giving the monotone MAE improvement with longer $K$ ($148.05 \to 138.68$) without any genuine temporal signal.
 
-On the reference trajectories of Section~\ref{sec:res_traj} the recurrent and feed-forward networks were within one millimetre of each other in tracking error, but the LSTM's pressure-command jerk was one to two orders of magnitude lower on Dataset~1---a property of the hidden-state low-pass, useful where actuator wear or valve chatter matters.
+On the reference trajectories the recurrent and feed-forward networks were within one millimetre of each other in tracking error, but the LSTM's pressure-command jerk was one to two orders of magnitude lower on Dataset~1---a property of the hidden-state low-pass, useful where actuator wear or valve chatter matters.
 
 \section{Jacobian-learned iteration versus direct regression}
 \label{sec:disc_jacobian_vs_mlp}
@@ -119,7 +119,7 @@ Strategy~B matched Strategy~A within $\pm 1$ command unit at every budget; Strat
 The synthetic tip cloud spans $\approx 500 \times 480 \times 330$\,mm against Dataset~2's $102 \times 104 \times 64$\,mm; the two distributions essentially do not overlap. Other axes---hyperelasticity, viscoelastic hysteresis, pneumatic lag (absent via Eq.~\eqref{eq:sim_moment}), manufacturing asymmetry---contribute in principle, but Strategy~C's $R^{2} = -1.71$ is set by the coordinate mismatch: a network trained in the wrong region cannot map real inputs to the right output regardless of material fidelity. Strategy~B's fine-tuning then discards the pre-training because the synthetic input range has no counterpart in the real distribution (a $(150,-200,-300)$\,mm synthetic tip has no Dataset~2 analogue).
 
 \paragraph{Why Fang et al.\ succeeded.}
-Fang et al.\ \cite{fang2022jacobian} used a digital twin of the target platform. The simulator here was a Manti-inspired reference rod because Dataset~2's parameters are undocumented (Section~\ref{sec:res_pcc_single}). The negative result is therefore an argument for Fang's method \emph{conditional on a digital twin}, not a refutation.
+Fang et al.\ \cite{fang2022jacobian} used a digital twin of the target platform. The simulator here was a Manti-inspired reference rod because Dataset~2's parameters are undocumented. The negative result is therefore an argument for Fang's method \emph{conditional on a digital twin}, not a refutation.
 
 \paragraph{Minimum changes for a positive transfer.}
 (1)~Rescale and re-centre the simulator workspace to the target; this removes the dominant axis. (2)~Calibrate pressure-to-command scale so synthetic commands cover the recorded range. (3)~Add a hysteresis term (e.g.\ a Preisach layer). The first is most tractable; the other two address axes the present design could not isolate.
@@ -133,15 +133,15 @@ Every closed-loop number was measured through the shared learned FK arbiter (tes
 
 \paragraph{Dataset coverage.}
 \label{sec:disc_lim_data}
-Two pneumatic platforms with optical markers, workspaces at most a few hundred millimetres. Untested: cable- and tendon-driven arms with different hysteresis; metre-scale arms with different noise-to-workspace ratios; full-shape sensors (fibre-Bragg, proprioceptive cells) for which the discrete mid-marker ablation may not directly translate. The three-property decision framework of §\ref{sec:disc_interpretation} rests on $n = 2$ datasets.
+Two pneumatic platforms with optical markers, workspaces at most a few hundred millimetres. Untested: cable- and tendon-driven arms with different hysteresis; metre-scale arms with different noise-to-workspace ratios; full-shape sensors (fibre-Bragg, proprioceptive cells) for which the discrete mid-marker ablation may not directly translate. The three-property decision framework rests on $n = 2$ datasets.
 
 \paragraph{Simulator fidelity.}
 \label{sec:disc_lim_sim}
-The PyElastica rod is single-module, linear-elastic, instantaneous pressure-as-moment, without viscoelasticity or manufacturing imperfections. Of the five reality-gap axes named in §\ref{sec:disc_sim} only workspace geometry was measured quantitatively; the negative Dataset~2 sim-to-real result is therefore consistent with any combination of gaps contributing. The Young's-modulus calibration used Manti anchors, not Dataset~2 data; the rod is an I-Support reference, not a Dataset~2 model. A follow-up with hyperelasticity, viscoelastic damping, and a pneumatic-line delay would be the minimal platform for per-axis attribution.
+The PyElastica rod is single-module, linear-elastic, instantaneous pressure-as-moment, without viscoelasticity or manufacturing imperfections. Of the five reality-gap axes only workspace geometry was measured quantitatively; the negative Dataset~2 sim-to-real result is therefore consistent with any combination of gaps contributing. The Young's-modulus calibration used Manti anchors, not Dataset~2 data; the rod is an I-Support reference, not a Dataset~2 model. A follow-up with hyperelasticity, viscoelastic damping, and a pneumatic-line delay would be the minimal platform for per-axis attribution.
 
 \paragraph{Metric choice and statistical evidence.}
 \label{sec:disc_lim_metric}
-All position errors use the tip only; differently-shaped arms with the same tip are scored identically, and a Hausdorff-distance full-shape metric would be more appropriate for obstacle-avoidance or contact tasks. Pressure metrics on multi-valued inverses favour posterior-mean estimators and do not rank by a single notion of ``quality''. Networks were trained once per configuration (single seed); the paired Wilcoxon + bootstrap CI on the mid-marker ablation is the only reported uncertainty quantification. Retraining every configuration from $3$--$5$ independent seeds would tighten §\ref{sec:disc_jacobian_vs_mlp} and §\ref{sec:overall} at roughly $3\times$ the compute cost.
+All position errors use the tip only; differently-shaped arms with the same tip are scored identically, and a Hausdorff-distance full-shape metric would be more appropriate for obstacle-avoidance or contact tasks. Pressure metrics on multi-valued inverses favour posterior-mean estimators and do not rank by a single notion of ``quality''. Networks were trained once per configuration (single seed); the paired Wilcoxon + bootstrap CI on the mid-marker ablation is the only reported uncertainty quantification. Retraining every configuration from $3$--$5$ independent seeds would tighten the Jacobian-vs-MLP and overall comparisons at roughly $3\times$ the compute cost.
 
 \section{Implications}
 \label{sec:disc_implications}

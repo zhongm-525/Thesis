@@ -1,7 +1,7 @@
 \chapter{Background and Literature Review}
 \label{chap:background}
 
-This chapter reviews the literature along the lines most relevant to the comparative evaluation of Chapters~\ref{chap:methods}--\ref{chap:results}: the motivation for soft-robot control and why the inverse is hard (Sections~\ref{sec:bg_motivation}--\ref{sec:bg_ik_hard}), the modelling and learning method families (Sections~\ref{sec:bg_models_hierarchy}--\ref{sec:bg_ml_ik}), sensing and simulation infrastructure (Sections~\ref{sec:bg_sensing}--\ref{sec:bg_sim}), evaluation baselines (Section~\ref{sec:bg_metrics}), and the research gap the thesis is positioned against (Section~\ref{sec:bg_gap}).
+This chapter reviews the literature along the lines most relevant to the comparative evaluation of Chapters~\ref{chap:methods}--\ref{chap:results}: the motivation for soft-robot control and why the inverse is hard, the modelling and learning method families, sensing and simulation infrastructure, evaluation baselines, and the research gap the thesis is positioned against.
 
 \section{Soft robots and the control motivation}
 \label{sec:bg_motivation}
@@ -34,7 +34,7 @@ When the actuation dimension $n_{u}$ exceeds the task-space dimension $n_{x}$, s
 Soft pneumatic actuators show rate effects, creep, hysteresis, and flow dynamics, so the same target may require different inputs depending on the recent trajectory of the state \cite{thuruthel2018survey, thuruthel2019modelbased, tariverdi2021rnn}. A static regressor will miss this dependence unless the observable input already carries information about the latent state.
 
 \paragraph{Partial observability.}
-End-point sensing alone typically under-identifies the internal configuration of a deformable body; partial-shape observations (a mid-body marker, strain sensor, or proprioceptive signal) change the identifiability structure, not just the input features \cite{sincak2024sensing, wang2024proprioception}. Section~\ref{sec:bg_sensing} revisits this; the tip-plus-mid ablation of Section~\ref{sec:res_mlp_tipmid} tests it empirically.
+End-point sensing alone typically under-identifies the internal configuration of a deformable body; partial-shape observations (a mid-body marker, strain sensor, or proprioceptive signal) change the identifiability structure, not just the input features \cite{sincak2024sensing, wang2024proprioception}. The tip-plus-mid ablation reported in Chapter~\ref{chap:results} tests this empirically.
 
 \section{Modelling hierarchy for soft-robot control}
 \label{sec:bg_models_hierarchy}
@@ -53,7 +53,7 @@ Rod theory treats the backbone as a slender elastic body with centreline and cro
 Volumetric discretisation captures complex material laws, geometric nonlinearities, and contact at high computational cost and heavy parameter identification \cite{mengaldo2022embodied, armanini2023structured}; FEM is rarely inverted at run time and is instead used for offline data generation or as a physics prior \cite{gao2024residual, park2025dualae}.
 
 \paragraph{Implication for this thesis.}
-PCC is retained as the analytical baseline (what a tractable geometric approximation can and cannot recover); a Cosserat rod is the sim-to-real source (Section~\ref{sec:sim_setup}); learned surrogates sit at every level.
+PCC is retained as the analytical baseline (what a tractable geometric approximation can and cannot recover); a Cosserat rod is the sim-to-real source; learned surrogates sit at every level.
 
 \begin{table}[ht]
 \centering
@@ -79,11 +79,11 @@ The relevant taxonomy, summarised in Table~\ref{tab:bg_methods}, distinguishes d
 
 \paragraph{Direct inverse learning.}
 \label{sec:bg_ik_direct}
-A feed-forward network $\hat{\mathbf{u}} = g_{\psi}(\mathbf{x}^{\ast})$ absorbs fabrication imperfections and nonlinearities directly from data \cite{kim2021mlsoft, wang2021mlsurvey}; Giorelli et al.\ \cite{giorelli2015nn} and Ma et al.\ \cite{ma2022bp} showed it outperforms analytical baselines on soft arms. The weakness is structural: on a multi-valued inverse the learned output drifts toward the branch-average \cite{wang2021mlsurvey, fang2022jacobian}, the failure mode that Dataset~1's feed-forward baseline exhibits in Section~\ref{sec:mlp_tip}.
+A feed-forward network $\hat{\mathbf{u}} = g_{\psi}(\mathbf{x}^{\ast})$ absorbs fabrication imperfections and nonlinearities directly from data \cite{kim2021mlsoft, wang2021mlsurvey}; Giorelli et al.\ \cite{giorelli2015nn} and Ma et al.\ \cite{ma2022bp} showed it outperforms analytical baselines on soft arms. The weakness is structural: on a multi-valued inverse the learned output drifts toward the branch-average \cite{wang2021mlsurvey, fang2022jacobian}, the failure mode that Dataset~1's feed-forward baseline exhibits in Chapter~\ref{chap:results}.
 
 \paragraph{Temporal / recurrent models.}
 \label{sec:bg_ik_temporal}
-Recurrent architectures introduce a latent state that carries history, capturing hysteresis and flow delay statistically rather than through explicit constitutive models \cite{thuruthel2019modelbased, tariverdi2021rnn}. Temporal context helps only if the past carries information about the hidden state: for i.i.d.\ data or impoverished features, recurrent models add complexity without solving identifiability \cite{wang2021mlsurvey, tariverdi2021rnn}. Section~\ref{sec:res_lstm} confirms this quantitatively.
+Recurrent architectures introduce a latent state that carries history, capturing hysteresis and flow delay statistically rather than through explicit constitutive models \cite{thuruthel2019modelbased, tariverdi2021rnn}. Temporal context helps only if the past carries information about the hidden state: for i.i.d.\ data or impoverished features, recurrent models add complexity without solving identifiability \cite{wang2021mlsurvey, tariverdi2021rnn}.
 
 \paragraph{Jacobian-learned hybrid.}
 \label{sec:bg_ik_jac}
@@ -94,7 +94,7 @@ One learns the forward map $f_{\theta}(\mathbf{u})$ and inverts it iteratively v
     + J_{f}(\mathbf{u}_{k})^{\top} \left( J_{f}(\mathbf{u}_{k}) J_{f}(\mathbf{u}_{k})^{\top} + \lambda^{2} I \right)^{-1} \big( \mathbf{x}^{\ast} - f_{\theta}(\mathbf{u}_{k}) \big).
   \label{eq:bg_jacobian_update}
 \end{equation}
-The forward map is single-valued and therefore easier to learn, and the iteration commits to a single branch rather than averaging \cite{fang2022jacobian}. The limitation is that performance is capped by the learned forward model, which shapes the evaluation protocol of Section~\ref{sec:res_jacobian}.
+The forward map is single-valued and therefore easier to learn, and the iteration commits to a single branch rather than averaging \cite{fang2022jacobian}. The limitation is that performance is capped by the learned forward model.
 
 \paragraph{Reinforcement learning.}
 Policy-learning work \cite{thuruthel2019modelbased} extends soft-robot control beyond static inverse kinematics but is treated here as adjacent context rather than a head-to-head comparator, since this thesis holds dataset, metric, and protocol fixed across IK families.
@@ -121,19 +121,19 @@ Sim-pretrained / hybrid transfer & Simulation prior, fine-tune on real data     
 
 Control quality depends on what is observed: end-effector sensing alone often under-identifies the internal configuration of a deformable body. Sincak et al.\ \cite{sincak2024sensing} reframe control performance as a sensing problem; Wang et al.\ \cite{wang2024proprioception} show that a mid-body observation is not just another input feature but an intervention that changes the identifiability of the problem.
 
-For Dataset~1, the two-module AM-I-Support arm is driven by six actuation channels while only the tip is observed in the minimal sensing case, so the learning system is asked to infer a six-dimensional command from a three-dimensional target. A mid-segment observation makes the inverse better constrained; the tip-only versus tip-plus-mid comparison of Sections~\ref{sec:res_mlp_tipmid} and~\ref{sec:res_lstm} tests this observability hypothesis.
+For Dataset~1, the two-module AM-I-Support arm is driven by six actuation channels while only the tip is observed in the minimal sensing case, so the learning system is asked to infer a six-dimensional command from a three-dimensional target. A mid-segment observation makes the inverse better constrained; the tip-only versus tip-plus-mid comparison reported in Chapter~\ref{chap:results} tests this observability hypothesis.
 
 \section{Simulation and sim-to-real transfer}
 \label{sec:bg_sim}
 
-Simulation provides synthetic training data, safe controller prototyping, and a structured prior for transfer learning \cite{gazzola2018pyelastica, fang2022jacobian, peng2018simtoreal, gao2024residual, park2025dualae}. The simulator used in this thesis is PyElastica \cite{gazzola2018pyelastica}, a Python implementation of the special Cosserat-rod formulation of Section~\ref{sec:bg_models_cosserat}; Section~\ref{sec:sim_setup} details the rod and calibration.
+Simulation provides synthetic training data, safe controller prototyping, and a structured prior for transfer learning \cite{gazzola2018pyelastica, fang2022jacobian, peng2018simtoreal, gao2024residual, park2025dualae}. The simulator used in this thesis is PyElastica \cite{gazzola2018pyelastica}, a Python implementation of the Cosserat-rod formulation above.
 
 Four sim-to-real strategies have emerged. \emph{Direct transfer} uses simulator weights unchanged on the real robot and is typically a lower baseline. \emph{Fine-tuning} a sim-pre-trained network on a small real-data budget is the most common soft-robotics route \cite{fang2022jacobian}. \emph{Domain randomisation} samples simulator parameters from distributions that span the expected real range \cite{peng2018simtoreal}; it is harder to apply to soft robots whose gaps include hysteresis, viscoelastic creep, and manufacturing asymmetries. \emph{Real-to-sim calibration and residual physics}, as in Gao et al.\ \cite{gao2024residual} and Park et al.\ \cite{park2025dualae}, either tune the simulator against real data or learn a residual correction on top of it. Across the four, the recurring finding is that transfer value is bounded above by geometric and kinematic overlap between simulator and real robot---the finding the PyElastica experiments of Chapter~\ref{chap:results} reproduce on Dataset~2.
 
 \section{Evaluation metrics and published baselines}
 \label{sec:bg_metrics}
 
-Position-space error (Euclidean tip distance, optionally normalised by arm length) and pressure-space error (MAE, MAPE, NMAE, $R^{2}$) are the two standard metric families; trajectory-tracking evaluations additionally report command smoothness and inference time. Full definitions used here are given in Section~\ref{sec:metrics}. Three published results serve as scale markers for Section~\ref{sec:disc_benchmarks}: Giorelli et al.\ \cite{giorelli2015nn} reported $7.35$\,mm mean tip error ($2.62\%$ of a $280$\,mm cable-driven arm) for a feed-forward network; Ma et al.\ \cite{ma2022bp} reported pressure-space MAPE below $5\%$ for a BP network on a $216$-sample three-chamber pneumatic arm; Fang et al.\ \cite{fang2022jacobian} reported sub-millimetre closed-loop error for a Jacobian-learned iteration on a pneumatic arm with a digital-twin simulator. The three bracket the accuracy range cleanly-characterised soft-robot platforms have attained.
+Position-space error (Euclidean tip distance, optionally normalised by arm length) and pressure-space error (MAE, MAPE, NMAE, $R^{2}$) are the two standard metric families; trajectory-tracking evaluations additionally report command smoothness and inference time. Three published results serve as scale markers: Giorelli et al.\ \cite{giorelli2015nn} reported $7.35$\,mm mean tip error ($2.62\%$ of a $280$\,mm cable-driven arm) for a feed-forward network; Ma et al.\ \cite{ma2022bp} reported pressure-space MAPE below $5\%$ for a BP network on a $216$-sample three-chamber pneumatic arm; Fang et al.\ \cite{fang2022jacobian} reported sub-millimetre closed-loop error for a Jacobian-learned iteration on a pneumatic arm with a digital-twin simulator. The three bracket the accuracy range cleanly-characterised soft-robot platforms have attained.
 
 \section{Research gap}
 \label{sec:bg_gap}

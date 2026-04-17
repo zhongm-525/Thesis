@@ -1,15 +1,15 @@
 \chapter{Future Work}
 \label{chap:future_work}
 
-Five directions follow directly from the limitations of Chapter~\ref{chap:discussion} and would strengthen or extend the three-property decision framework of Section~\ref{sec:disc_interpretation}.
+Five directions follow directly from the limitations of Chapter~\ref{chap:discussion} and would strengthen or extend the three-property decision framework.
 
 \paragraph{Closed-loop hardware validation.}
 \label{sec:fw_hw}
-Every closed-loop number here is arbiter-mediated (FK MAE $2.55$ / $12.97$\,mm caps between-method resolution; §\ref{sec:disc_lim_hw}). Re-deploying the best DS1 (warm-start Jacobian-IK) and DS2 (Sim2Real FF) configurations on physical hardware would measure the true tracking error under real sensor noise, latency, and actuator saturation, and would confirm or overturn the arbiter-space spiral divergence of §\ref{sec:res_traj}.
+Every closed-loop number here is arbiter-mediated (FK MAE $2.55$ / $12.97$\,mm caps between-method resolution). Re-deploying the best DS1 (warm-start Jacobian-IK) and DS2 (Sim2Real FF) configurations on physical hardware would measure the true tracking error under real sensor noise, latency, and actuator saturation, and would confirm or overturn the arbiter-space spiral divergence.
 
 \paragraph{Workspace-matched simulators.}
 \label{sec:fw_sim}
-The tractable first step is to rescale and re-centre the PyElastica workspace to Dataset~2's tip distribution and re-run Strategies~A/B/C at the four budgets. If the $B - A$ gap remains within noise, adding hyperelasticity, viscoelastic damping, and air-flow delay one axis at a time would isolate per-axis contributions to the reality gap that §\ref{sec:disc_sim} could not decompose.
+The tractable first step is to rescale and re-centre the PyElastica workspace to Dataset~2's tip distribution and re-run Strategies~A/B/C at the four budgets. If the $B - A$ gap remains within noise, adding hyperelasticity, viscoelastic damping, and air-flow delay one axis at a time would isolate per-axis contributions to the reality gap.
 
 \paragraph{Broader sensing modalities and platforms.}
 \label{sec:fw_sensing}
@@ -17,8 +17,8 @@ Three external-validity tests: (i) rerun the mid-marker ablation with continuous
 
 \paragraph{Multi-seed statistical evidence.}
 \label{sec:fw_stats}
-Retraining every configuration from $3$--$5$ independent seeds and reporting confidence intervals on every summary metric would tighten the cross-method rankings of §\ref{sec:overall} and the $0.01$--$0.05$\,mm Jacobian-initialisation differences of §\ref{sec:res_jacobian}. A three-seed rerun is a day of compute on the workstation of §\ref{sec:reproducibility}.
+Retraining every configuration from $3$--$5$ independent seeds and reporting confidence intervals on every summary metric would tighten the cross-method rankings and the $0.01$--$0.05$\,mm Jacobian-initialisation differences. A three-seed rerun is a day of compute on the reported workstation.
 
 \paragraph{Hybrid controllers and explicit hysteresis.}
 \label{sec:fw_hybrids}
-A two-stage controller (FF inner loop, Jacobian on error-threshold exceedance) would combine FF latency with Jacobian accuracy; a learned stopping criterion would address the DS2 spiral divergence; a Preisach or Bouc-Wen hysteresis layer between command and forward network would provide a physically grounded test of the hysteresis hypothesis that §\ref{sec:disc_temporal} could only approach recurrently.
+A two-stage controller (FF inner loop, Jacobian on error-threshold exceedance) would combine FF latency with Jacobian accuracy; a learned stopping criterion would address the DS2 spiral divergence; a Preisach or Bouc-Wen hysteresis layer between command and forward network would provide a physically grounded test of the hysteresis hypothesis that recurrent modelling could only approach statistically.
