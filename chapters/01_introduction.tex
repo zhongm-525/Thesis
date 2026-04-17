@@ -1,6 +1,11 @@
 \chapter{Introduction}
 \label{chap:introduction}
 
+\section{Scope and terminology}
+\label{sec:intro_scope}
+
+The title of this thesis---\emph{AI for Control of Soft Robot by Using ML and Inverse Kinematics}---frames four keywords whose scope is fixed in this section so the reader can calibrate the remaining chapters against it. \emph{AI} and \emph{ML} are used interchangeably throughout; both denote learning-based models trained on recorded data rather than hand-derived analytical relationships, and the four learning-based families investigated are feed-forward regression (Section~\ref{sec:bg_ik_mlp}), recurrent regression (Section~\ref{sec:bg_ik_lstm}), Jacobian-learned iteration (Section~\ref{sec:bg_ik_jacobian}), and sim-to-real pre-training on a PyElastica simulator (Section~\ref{sec:bg_sim}). \emph{Inverse Kinematics} denotes both the classical analytical piecewise-constant-curvature baseline of Section~\ref{sec:bg_ik_analytical}, which inverts a simplified physical model directly, and the hybrid formulation of Section~\ref{sec:bg_ik_jacobian}, in which an ML-trained forward map is inverted iteratively at run time. \emph{Control of Soft Robot} is taken in its open-loop position-control sense: given a desired tip pose, predict the actuation command that drives the tip to that pose, following the usage of Giorelli et al.\ \cite{giorelli2015nn}, Ma et al.\ \cite{ma2022bp}, Fang et al.\ \cite{fang2022jacobian}, and Centurelli et al.\ \cite{centurelli2022closed}, whose titles adopt the same control--via--IK convention. Closed-loop real-hardware control is explicitly out of scope (Section~\ref{sec:disc_lim_hw}); the empirical evaluation instead closes the loop in simulation through a learned forward-kinematics arbiter that every method's predicted pressures are passed through on identical reference trajectories (Section~\ref{sec:res_traj}). The title should therefore be read as the comparative question: ``which AI instantiation, alongside classical IK, best solves the open-loop control problem for a soft robot on realistic recorded data?''---and the remaining chapters of the thesis answer that question along the three physical properties distilled in Chapter~\ref{chap:discussion}.
+
 \section{Motivation}
 \label{sec:intro_motivation}
 
