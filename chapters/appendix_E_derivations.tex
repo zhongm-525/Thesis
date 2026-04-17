@@ -55,7 +55,7 @@ Each segment $s \in \{1, 2\}$ is parameterised by $(\theta_{s}, \varphi_{s}, L_{
 The orientation of the segment's tip frame is a rotation by $\theta_{s}$ about the axis $\mathbf{n}_{s} = (-\sin\varphi_{s},\ \cos\varphi_{s},\ 0)$, which is perpendicular to the bending plane; this rotation matrix is denoted $\mathbf{R}_{s}$.
 
 \paragraph{Composition with inter-segment offset.}
-The two modules of the I-Support platform are rotated by $\pi/3$ about the local $z$-axis so the six chambers together cover the full actuation circle (Section~\ref{sec:bg_pneumatic_isupport}). Let $\mathbf{R}_{z}(\pi/3)$ denote this fixed rotation. The second-segment tip displacement expressed in the \emph{first}-segment tip frame is $\mathbf{R}_{z}(\pi/3)\, \mathbf{t}_{2}$, and expressed in the \emph{base} frame is $\mathbf{R}_{1} \mathbf{R}_{z}(\pi/3)\, \mathbf{t}_{2}$. Adding this to the first-segment tip gives the compound forward map
+The two modules of the I-Support platform are rotated by $\pi/3$ about the local $z$-axis so the six chambers together cover the full actuation circle (Section~\ref{sec:bg_motivation}). Let $\mathbf{R}_{z}(\pi/3)$ denote this fixed rotation. The second-segment tip displacement expressed in the \emph{first}-segment tip frame is $\mathbf{R}_{z}(\pi/3)\, \mathbf{t}_{2}$, and expressed in the \emph{base} frame is $\mathbf{R}_{1} \mathbf{R}_{z}(\pi/3)\, \mathbf{t}_{2}$. Adding this to the first-segment tip gives the compound forward map
 \begin{equation}
   \mathbf{p}_{\mathrm{tip}}(\boldsymbol{\xi}) = \mathbf{t}_{1} + \mathbf{R}_{1} \mathbf{R}_{z}(\pi/3)\, \mathbf{t}_{2},
   \label{eq:deriv_pcc_multi_fk}

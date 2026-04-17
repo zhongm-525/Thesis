@@ -6,30 +6,34 @@ This appendix collects the hyperparameter configurations, supplementary figures,
 \section{Hyperparameter configurations}
 \label{app:hyperparameters}
 
-Table~\ref{tab:app_hyperparams_networks} lists the final hyperparameters for every trained inverse-kinematics or forward-kinematics network reported in Chapter~\ref{chap:results}. Architecture widths, optimiser, learning rate, batch size, epoch cap, early-stopping patience, random seed, and the best-epoch indices returned by the early-stopping monitor are shown. All values are those fixed after the preliminary sweeps described in Section~\ref{sec:hparam_sweep}; they are identical across both datasets unless the $n_{p}$-dependent output width is indicated.
+Table~\ref{tab:app_hyperparams_networks} lists the final hyperparameters for every trained inverse-kinematics or forward-kinematics network reported in Chapter~\ref{chap:results}. Architecture widths, optimiser, learning rate, batch size, epoch cap, early-stopping patience, random seed, and the best-epoch indices returned by the early-stopping monitor are shown. All values are those fixed after the preliminary sweeps described in Section~\ref{sec:hyperparam}; they are identical across both datasets unless the $n_{p}$-dependent output width is indicated.
 
 \begin{table}[!htbp]
   \centering
   \small
-  \caption{Final hyperparameter configurations for every trained network. Output width equals $n_{p}$ for inverse-kinematics networks and $3$ for forward-kinematics networks. MLP architectures are reported as input--hidden$_{1}$--hidden$_{2}$--output; LSTM architectures are reported as (window $W$, hidden units, layers). All networks use ReLU (MLP) or tanh (LSTM) activations, the Adam optimiser, and seed $42$.}
+  \caption{Final hyperparameter configurations for every trained network, matched to the registered YAML configurations in \texttt{configs/*.yaml}. Output width equals $n_{p}$ for inverse-kinematics networks and $3$ for forward-kinematics networks. MLP architectures are reported as input--hidden$_{1}$--hidden$_{2}$--hidden$_{3}$--hidden$_{4}$--output (four hidden layers throughout); LSTM architectures are reported as (window $W$, hidden units, layers). All networks use ReLU (MLP) or default PyTorch tanh/sigmoid (LSTM) activations, the Adam optimiser, and seed $42$.}
   \label{tab:app_hyperparams_networks}
   \begin{tabularx}{\linewidth}{@{}l l l X l l l l@{}}
     \toprule
     Role & Dataset & Input features & Architecture & Lr & Batch & Cap / patience & Best epoch \\
     \midrule
-    IK MLP tip-only         & Dataset 1 & $(x,y,z)$                  & 3--128--128--6 & $10^{-3}$ & 64  & 300 / 25 & 4   \\
-    IK MLP tip-plus-mid     & Dataset 1 & $(x,y,z,x_{m},y_{m},z_{m})$ & 6--128--128--6 & $10^{-3}$ & 64  & 300 / 25 & 21  \\
-    IK MLP tip-only         & Dataset 2 & $(x,y,z)$                  & 3--128--128--3 & $10^{-3}$ & 64  & 300 / 25 & 137 \\
-    IK LSTM tip-only        & Dataset 1 & $(x,y,z)$                  & ($W{=}10$, 64, 1) & $10^{-3}$ & 64  & 300 / 25 & 38  \\
-    IK LSTM tip-plus-mid    & Dataset 1 & $(x,y,z,x_{m},y_{m},z_{m})$ & ($W{=}10$, 64, 1) & $10^{-3}$ & 64  & 300 / 25 & 45  \\
-    IK LSTM tip-only        & Dataset 2 & $(x,y,z)$                  & ($W{=}10$, 64, 1) & $10^{-3}$ & 64  & 300 / 25 & 114 \\
-    FK arbiter              & Dataset 1 & 6 pressures                 & 6--128--128--3 & $10^{-3}$ & 64  & 300 / 25 & 82  \\
-    FK arbiter              & Dataset 2 & 3 valve commands            & 3--128--128--3 & $10^{-3}$ & 64  & 300 / 25 & 156 \\
-    Sim2Real Strategy A     & Dataset 2 & $(x,y,z)$                  & 3--128--128--3 & $10^{-3}$ & 64  & 300 / 25 & 137 \\
-    Sim2Real Strategy B     & Dataset 2 & $(x,y,z)$                  & 3--128--128--3 & $10^{-4}$ & 64  & 200 / 25 & 71  \\
-    Sim2Real Strategy C     & Dataset 2 & $(x,y,z)$                  & 3--128--128--3 & $10^{-3}$ & 64  & 300 / 25 & 198 \\
+    IK MLP tip-only         & Dataset 1 & $(x,y,z)$                   & 3--128--256--256--128--6  & $10^{-3}$ & 64 & 500 / 30 & 4   \\
+    IK MLP tip-plus-mid     & Dataset 1 & $(x,y,z,x_{m},y_{m},z_{m})$ & 6--128--256--256--128--6  & $10^{-3}$ & 64 & 500 / 30 & 21  \\
+    IK MLP tip-only         & Dataset 2 & $(x,y,z)$                   & 3--64--128--128--64--3    & $10^{-3}$ & 64 & 500 / 30 & 44  \\
+    IK LSTM tip-only        & Dataset 1 & $(x,y,z)$                   & ($W{=}10$, $128$, $2$)    & $10^{-3}$ & 64 & 300 / 20 & 38  \\
+    IK LSTM tip-plus-mid    & Dataset 1 & $(x,y,z,x_{m},y_{m},z_{m})$ & ($W{=}10$, $128$, $2$)    & $10^{-3}$ & 64 & 300 / 20 & 45  \\
+    IK LSTM tip-only        & Dataset 2 & $(x,y,z)$                   & ($W{=}10$, $128$, $2$)    & $10^{-3}$ & 64 & 300 / 20 & 114 \\
+    FK arbiter              & Dataset 1 & 6 pressures                 & 6--128--256--256--128--3  & $10^{-3}$ & 64 & 500 / 30 & 82  \\
+    FK arbiter              & Dataset 2 & 3 valve commands            & 3--64--128--128--64--3    & $10^{-3}$ & 64 & 500 / 30 & 156 \\
+    Sim2Real Strategy A     & Dataset 2 & $(x,y,z)$                   & 3--64--128--128--64--3    & $10^{-3}$ & 64 & 500 / 30  & 137 \\
+    Sim2Real B (pre-train)  & synthetic & $(x,y,z)$                   & 3--64--128--128--64--3    & $10^{-3}$ & 64 & 100 / --- & ---  \\
+    Sim2Real B (fine-tune)  & Dataset 2 & $(x,y,z)$                   & 3--64--128--128--64--3    & $10^{-4}$ & 64 & 500 / 30  & 71  \\
+    Sim2Real Strategy C     & synthetic & $(x,y,z)$                   & 3--64--128--128--64--3    & $10^{-3}$ & 64 & 500 / 30  & 198 \\
     \bottomrule
   \end{tabularx}
+
+  \vspace{0.5em}
+  \noindent\emph{Note.} Strategy~B's pre-training phase runs for a fixed cap of $100$ epochs with no early-stopping monitor, so no best-epoch index is reported for that phase; both phases of Strategy~B share the same network architecture and scalers, which are fitted on the real subset so the synthetic pre-training data is transformed into the target-domain standardisation (Section~\ref{sec:sim_transfer}). The Dataset~2 MLP best-epoch of $44$ matches the training-curve dotted marker of Figure~\ref{fig:app_training_curves}; the FK arbiter and Dataset~2 LSTM values are read from their respective training runs on the same configuration.
 \end{table}
 
 Table~\ref{tab:app_hyperparams_solvers} collects the hyperparameters of the non-learned components: the SLSQP two-segment PCC inverse of Section~\ref{sec:pcc_multi} and the damped-least-squares Jacobian iteration of Section~\ref{sec:jacobian}. These values were fixed in advance from the referenced literature and are reported here for completeness.
@@ -43,12 +47,12 @@ Table~\ref{tab:app_hyperparams_solvers} collects the hyperparameters of the non-
     \toprule
     Component & Parameter & Value \\
     \midrule
-    \multirow{4}{*}{Two-segment PCC SLSQP} & Bounds $\theta_{s}$            & $[0, \pi/2]$ rad per segment \\
-                                            & Bounds $\varphi_{s}$           & $[-\pi, \pi]$ rad per segment \\
-                                            & Bounds $\Delta L_{s}$          & $[-0.015, +0.015]$\,m per segment \\
+    \multirow{4}{*}{Two-segment PCC SLSQP} & Bounds $\theta_{s}$            & $[0,\, 2.5]$\,rad per segment \\
+                                            & Bounds $\varphi_{s}$           & $[-\pi,\, \pi]$\,rad per segment \\
+                                            & Bounds $\Delta L_{s}$          & $[-50,\, +50]$\,mm per segment \\
                                             & Termination tolerance          & $10^{-8}$ on objective gradient \\
     \midrule
-    \multirow{6}{*}{Jacobian DLS iteration} & Damping $\lambda$              & $5 \times 10^{-3}$ \\
+    \multirow{6}{*}{Jacobian DLS iteration} & Damping $\lambda$              & $0.05$ \\
                                             & Step scale $\alpha$            & $0.5$ \\
                                             & Position tolerance             & $1$\,mm \\
                                             & Max iterations                 & $50$ \\
@@ -61,16 +65,16 @@ Table~\ref{tab:app_hyperparams_solvers} collects the hyperparameters of the non-
 \section{Supplementary figures}
 \label{app:extended_figures}
 
-Figure~\ref{fig:app_training_curves} shows the training and validation loss curves for the feed-forward networks of Section~\ref{sec:res_mlp_tiponly} on both datasets. The Dataset~1 curve flattens around epoch $4$ and the early-stopping patience terminates before the training loss drops appreciably further, confirming the data-limited plateau discussed in Section~\ref{sec:disc_jacobian_vs_mlp}. The Dataset~2 curve continues to descend for more than one hundred epochs, consistent with the single-valued inverse being learnable from the available sample count.
+Figure~\ref{fig:app_training_curves} shows the training and validation loss curves for the feed-forward networks of Section~\ref{sec:res_mlp_tip} on both datasets. The Dataset~1 curve flattens around epoch $4$ and the validation loss starts to increase thereafter, so early stopping selects the fourth-epoch checkpoint and confirms the data-limited plateau discussed in Section~\ref{sec:disc_jacobian_vs_mlp}. The Dataset~2 curve continues to descend for several tens of epochs before levelling off, with the validation-loss minimum at epoch~$44$; this is consistent with the single-valued inverse being learnable from the available sample count.
 
 \begin{figure}[!htbp]
   \centering
   \includegraphics[width=0.92\linewidth]{fig/mlp_training_curves.pdf}
-  \caption{Training and validation pressure MAE as a function of epoch for the tip-only MLP on Dataset~1 (left) and Dataset~2 (right). Vertical dashed lines mark the early-stopping best-epoch indices reported in Table~\ref{tab:app_hyperparams_networks}.}
+  \caption[Training and validation loss of the tip-only MLPs.]{Training and validation loss as a function of epoch for the tip-only MLP on Dataset~2 (left) and Dataset~1 (right). The vertical axis is mean squared error on the $z$-score-standardised pressure targets (not raw-unit MAE), the loss function actually optimised during training; raw-unit MAE is reported in the main results tables. Vertical dotted lines mark the early-stopping best-epoch indices ($44$ for Dataset~2, $4$ for Dataset~1), which are the indices recorded in Table~\ref{tab:app_hyperparams_networks}.}
   \label{fig:app_training_curves}
 \end{figure}
 
-Figure~\ref{fig:app_mlp_sweep} presents the hyperparameter sweep heatmap referenced in Section~\ref{sec:hparam_sweep}. Each cell reports the validation pressure MAE at the corresponding $(\text{hidden width}, \text{learning rate})$ combination on Dataset~2; the $128$-unit, $10^{-3}$ configuration chosen for all subsequent experiments is inside the region of flat near-optimal performance.
+Figure~\ref{fig:app_mlp_sweep} presents the hyperparameter sweep heatmap referenced in Section~\ref{sec:hyperparam}. Each cell reports the validation pressure MAE at the corresponding $(\text{hidden width}, \text{learning rate})$ combination on Dataset~2; the $128$-unit, $10^{-3}$ configuration chosen for all subsequent experiments is inside the region of flat near-optimal performance.
 
 \begin{figure}[!htbp]
   \centering
@@ -79,12 +83,12 @@ Figure~\ref{fig:app_mlp_sweep} presents the hyperparameter sweep heatmap referen
   \label{fig:app_mlp_sweep}
 \end{figure}
 
-Figure~\ref{fig:app_jacobian_time} shows the per-target inference-time distribution of the Jacobian-learned iteration on Dataset~1, as referenced in Section~\ref{sec:res_jacobian_efficiency}. The horizontal axis is logarithmic; the distribution is bimodal, with a left mode corresponding to targets that reach the $1$\,mm tolerance within the first few iterations (typical of warm-started trajectories) and a right mode corresponding to cold-start or near-singular targets that consume the full iteration cap.
+Figure~\ref{fig:app_jacobian_time} shows the per-target inference-time distribution of the warm-started Jacobian-learned iteration on both datasets, alongside the constant-cost feed-forward MLP baseline, as referenced in Section~\ref{sec:res_jacobian}. The Jacobian histogram is tightly peaked around $46$\,ms on both datasets, two to three orders of magnitude slower than the $\sim\!0.05$\,ms per-target MLP evaluation. The logarithmic horizontal axis makes the size of the latency gap visible at a glance.
 
 \begin{figure}[!htbp]
   \centering
-  \includegraphics[width=0.78\linewidth]{fig/jacobian_inference_time.pdf}
-  \caption{Distribution of per-target wall-clock inference time for the Jacobian-learned iteration on Dataset~1. Horizontal axis is logarithmic (milliseconds). The left mode corresponds to warm-started targets; the right mode to cold-start or near-singular targets that saturate the $50$-iteration cap.}
+  \includegraphics[width=0.95\linewidth]{fig/jacobian_inference_time.pdf}
+  \caption[Per-target inference-time distributions: Jacobian-IK vs MLP.]{Distribution of per-target wall-clock inference time for the warm-started (MLP-initialised) Jacobian-learned iteration (blue histogram) and the feed-forward MLP baseline (red vertical line) on Dataset~2 (left) and Dataset~1 (right). The horizontal axis is logarithmic (milliseconds). Jacobian means are $45.89$\,ms on Dataset~2 and $46.70$\,ms on Dataset~1, against $0.055$\,ms and $0.056$\,ms for the MLP respectively; the Jacobian iteration is therefore roughly $830\times$ slower than the direct regressor on both platforms.}
   \label{fig:app_jacobian_time}
 \end{figure}
 
@@ -121,10 +125,10 @@ Table~\ref{tab:app_repro_env} lists the software and hardware environment in whi
 \end{table}
 
 \paragraph{Checkpoint layout.}
-All trained networks are stored under \texttt{checkpoints/\{experiment\}/\{run\_id\}/best.pt}, where \texttt{experiment} is one of \{\texttt{mlp\_ds1\_tip}, \texttt{mlp\_ds1\_tipmid}, \texttt{mlp\_ds2\_tip}, \texttt{lstm\_ds1\_tip}, \texttt{lstm\_ds1\_tipmid}, \texttt{lstm\_ds2\_tip}, \texttt{fk\_ds1}, \texttt{fk\_ds2}, \texttt{sim2real\_A}, \texttt{sim2real\_B}, \texttt{sim2real\_C}\} and \texttt{run\_id} encodes the date and the configuration hash. Each checkpoint file is a single PyTorch dictionary with keys \texttt{model\_state\_dict}, \texttt{optimizer\_state\_dict}, \texttt{config} (the full YAML used for training), \texttt{input\_scaler}, \texttt{output\_scaler}, \texttt{seed}, \texttt{git\_hash}, and \texttt{timestamp}, following the metadata convention of Section~\ref{sec:training_protocol}.
+All trained networks are stored under \texttt{checkpoints/\{experiment\}/\{run\_id\}/best.pt}, where \texttt{experiment} is one of \{\texttt{mlp\_ds1\_tip}, \texttt{mlp\_ds1\_tipmid}, \texttt{mlp\_ds2\_tip}, \texttt{lstm\_ds1\_tip}, \texttt{lstm\_ds1\_tipmid}, \texttt{lstm\_ds2\_tip}, \texttt{fk\_ds1}, \texttt{fk\_ds2}, \texttt{sim2real\_A}, \texttt{sim2real\_B}, \texttt{sim2real\_C}\} and \texttt{run\_id} encodes the date and the configuration hash. Each checkpoint file is a single PyTorch dictionary with keys \texttt{model\_state\_dict}, \texttt{optimizer\_state\_dict}, \texttt{config} (the full YAML used for training), \texttt{input\_scaler}, \texttt{output\_scaler}, \texttt{seed}, \texttt{git\_hash}, and \texttt{timestamp}, following the metadata convention of Section~\ref{sec:reproducibility}.
 
 \paragraph{Evaluation determinism.}
-Evaluation scripts load the checkpoint, restore both scalers, re-seed all random-number generators, and run a single forward pass over the frozen test split. No test-time augmentation, dropout, or batch-normalisation update is applied. Closed-loop tracking evaluations use the fixed reference trajectories of Section~\ref{sec:trajectory_tracking} and the same FK arbiter checkpoint for every method, so that any differences between methods are attributable to the methods themselves rather than to arbiter variation.
+Evaluation scripts load the checkpoint, restore both scalers, re-seed all random-number generators, and run a single forward pass over the frozen test split. No test-time augmentation, dropout, or batch-normalisation update is applied. Closed-loop tracking evaluations use the fixed reference trajectories of Section~\ref{sec:traj} and the same FK arbiter checkpoint for every method, so that any differences between methods are attributable to the methods themselves rather than to arbiter variation.
 
 \paragraph{Code availability.}
 The training scripts, evaluation pipelines, configuration files, and figure-regeneration scripts are archived in the project repository described in Appendix~\ref{app:code}. The exact commit associated with the numbers reported in Chapter~\ref{chap:results} is \texttt{e9a7d5d} on the \texttt{master} branch; the raw Dataset~1 pickles and the Dataset~2 CSV are held under \texttt{data/raw/} and are not redistributed because of upstream licensing constraints stated in Appendix~\ref{app:code}.
