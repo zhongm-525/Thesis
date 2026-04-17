@@ -55,7 +55,6 @@ Giorelli et al.\ reported a $2.05\times$ FF-over-analytical advantage. This thes
 \paragraph{Fang et al.: sub-mm Jacobian-IK replicated on Dataset~1.}
 Fang et al.'s sub-mm learned-Jacobian result \cite{fang2022jacobian} is reproduced here at $0.71$\,mm (per-sample) and $0.77$\,mm (trajectory) on Dataset~1, using reference hyperparameters. Fang's sim-to-real extension was not validated: the negative transfer here reflects the Manti-inspired rod's workspace mismatch with Dataset~2, not the method.
 
-\paragraph{Caveat.}
 The three numbers are scale markers, not targets; the survivable claim is Dataset~1's sub-mm Jacobian closed-loop error on a real two-module pneumatic recording, matching Fang's order of magnitude.
 
 \section{The role of mid-segment information on Dataset 1}
@@ -70,13 +69,11 @@ The mid-marker centroid adds three observations that, under PCC, identify the se
 \paragraph{Temporal context amplifies the mid-marker signal, not the tip.}
 Tip-only LSTM is marginally \emph{worse} than tip-only MLP on Dataset~1 ($R^{2}$ $0.32 \to 0.28$); tip-plus-mid LSTM reaches $R^{2} = 0.51$ ($+17\%$ over tip-plus-mid MLP). Historical tip samples cannot pin the internal state; once the mid marker does, the recurrent network extracts the internal-state trajectory, which carries velocity and hysteresis information. Temporal modelling is thus contingent on the features already resolving under-identification.
 
-\paragraph{Caveat.}
 The mid-marker benefit is contingent on a real mid-marker signal at deployment: the trajectory evaluation of Section~\ref{sec:res_traj} substituted the training-distribution centroid and the network extrapolated off its training slice to $19.08$\,mm mean tracking error (the worst Dataset~1 entry in Table~\ref{tab:res_overall_ds1}), so any controller intending to use a tip-plus-mid network would need a running shape estimator of comparable quality.
 
 \section{Temporal modelling and hysteresis}
 \label{sec:disc_temporal}
 
-\paragraph{Where temporal modelling helped.}
 Only tip-plus-mid on Dataset~1 shows a clean gain ($R^{2}$ $0.44 \to 0.51$). Tip-only Dataset~1 is marginally worse; tip-only Dataset~2 is marginally better ($-4.8\%$ MAE). On smooth trajectories all recurrent and feed-forward variants sit within $1$\,mm of each other. The uniform benefit expected from hysteresis-dominated residual is not observed.
 
 \paragraph{Why tip-only fails on DS1.}
@@ -91,13 +88,11 @@ Alessi et al.\ \cite{alessi2024pushing} Table~1 report asymmetric AM-I-Support t
 \paragraph{Why DS2 benefits only marginally.}
 DS2 is IID (step-size ratio $1.00$/$0.96$; §\ref{sec:eda_findings}); the $4.8\%$ MAE reduction cannot reflect captured hysteresis. A regularisation story fits better: neighbouring rows with similar tips supply local averaging, giving the monotone MAE improvement with longer $K$ ($148.05 \to 138.68$) without any genuine temporal signal.
 
-\paragraph{Smoothness aside.}
 On the reference trajectories of Section~\ref{sec:res_traj} the recurrent and feed-forward networks were within one millimetre of each other in tracking error, but the LSTM's pressure-command jerk was one to two orders of magnitude lower on Dataset~1---a property of the hidden-state low-pass, useful where actuator wear or valve chatter matters.
 
 \section{Jacobian-learned iteration versus direct regression}
 \label{sec:disc_jacobian_vs_mlp}
 
-\paragraph{Recap.}
 Direct regression is the posterior-mean estimator (minimises pressure error); Jacobian iteration commits to a single posterior-mode branch (minimises position error). Below are four operational axes.
 
 \paragraph{Generalisation.}
@@ -118,7 +113,6 @@ Every headline Jacobian number uses warm-start from the direct regressor: on Dat
 \section{Sim-to-real observations}
 \label{sec:disc_sim}
 
-\paragraph{Summary.}
 Strategy~B matched Strategy~A within $\pm 1$ command unit at every budget; Strategy~C reached $R^{2} = -1.71$. Two findings, one diagnosis: the reality gap here is dominated by geometric workspace mismatch, not by sample count or material fidelity.
 
 \paragraph{Workspace geometry dominates the reality gap.}

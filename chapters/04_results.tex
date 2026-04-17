@@ -29,7 +29,6 @@ The PCC baselines provide a classical reference and probe two failure modes of a
 \subsection{Single-segment PCC on Dataset 2}
 \label{sec:res_pcc_single}
 
-\paragraph{Calibration and headline.}
 $L_0 = 67.24$\,mm ($1.05 \times \max \|\mathbf{p}\|$ on train); per-chamber slopes $\mathbf{a} \approx (31.7, 23.2, 18.9)$ and intercepts $\mathbf{b} \approx (1927, 1703, 1941)$ absorb chamber-specific gains. On the $51\%$ reachable subset, the forward residual mean is $22.67$\,mm, an order of magnitude above Dataset~1's marker noise and more than $2\times$ Ma et al.\ \cite{ma2022bp}'s $5\%$ MAPE scale. $48.9\%$ of targets fail the workspace condition; penalised full-set mean is $87.64$\,mm (Table~\ref{tab:res_pcc_single}; distribution in Fig~\ref{fig:res_pcc_error}).
 
 \begin{table}[ht]
@@ -53,7 +52,7 @@ Inference time per target (ms)             & $0.01$             & $0.01$        
 \end{tabularx}
 \end{table}
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.7\linewidth]{fig/pcc_error_distribution.pdf}
 \caption[Forward-residual distribution of the single-segment PCC on Dataset 2.]{Distribution of the per-target forward residual of the single-segment PCC baseline on the $1{,}385$ reachable targets of the Dataset 2 test set. The mean ($22.67$\,mm) and $95$th percentile ($48.70$\,mm) are marked. No target reaches the $\sim$$2.3$\,mm marker-noise floor established for Dataset 1 in Section~\ref{sec:eda_findings}, so the distribution is dominated by model error rather than by measurement noise.}
@@ -81,14 +80,13 @@ Flip and translation        & $70.44$    & $99.6\%$           & $20.50$         
 \paragraph{Elongation diagnostic.}
 Fig~\ref{fig:res_pcc_elongation}: tip norm correlates with total pressurisation at $r = +0.737$ and with a bending proxy at $r = +0.429$. Elongation dominates; the constant $L$ of Eq.~\eqref{eq:pcc_L} cannot absorb it---this is the structural ceiling on the reachable-subset residual.
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig/pcc_elongation_diagnostic.pdf}
 \caption[Elongation and bending diagnostics for Dataset 2.]{Tip-norm dependence on two actuation summaries over the Dataset 2 training split. Left: tip norm against total valve actuation $V_1 + V_2 + V_3$ (Pearson $r = +0.737$). Right: tip norm against the cross-chamber standard deviation of the valve commands, a proxy for bending magnitude ($r = +0.429$). The stronger correlation with total pressurisation is a structural mismatch that the constant-length single-segment PCC model cannot represent.}
 \label{fig:res_pcc_elongation}
 \end{figure}
 
-\paragraph{Interpretation.}
 The ${\sim}22$\,mm residual is a model-class ceiling, not a fit deficiency. Data-driven methods below do not commit to a fixed arc length and absorb the elongation coupling implicitly.
 
 \subsection{Two-segment PCC on Dataset 1}
@@ -122,7 +120,7 @@ Inference time per target (ms)              & $3$                               
 \end{tabularx}
 \end{table}
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig/pcc_multi_error_compare.pdf}
 \caption[Two-segment PCC versus feed-forward network on Dataset 1.]{Two-segment PCC (blue) versus the tip-only feed-forward network (orange) on the Dataset 1 test split. (a) Log-scale histogram of the per-target closed-loop position error. (b) Per-chamber absolute pressure residual against the ground-truth command. The PCC and feed-forward closed-loop distributions are well separated by about half a decade, and the PCC per-chamber pressure residuals sit uniformly above the feed-forward residuals on every chamber, consistent with a calibration that regresses to the per-chamber mean.}
@@ -132,7 +130,6 @@ Inference time per target (ms)              & $3$                               
 \paragraph{Failure mechanism.}
 Six-chamber actuation maps into a three-dimensional tip, so Eq.~\eqref{eq:pcc_multi_fk} admits a continuous configuration family per target. SLSQP picks one; different training frames land on different branches, so the per-chamber scatter of $(\ell_i, V_i)$ is large and the OLS calibration regresses to the per-chamber mean ($R^{2} \approx 0$ per chamber)---the returned pressures lie near the training-set mean, not near the target's true actuation.
 
-\paragraph{Interpretation.}
 Together with the Dataset~2 structural ceiling (Section~\ref{sec:res_pcc_single}), this shows PCC is not competitive on either dataset: constant-$L$ is the Dataset~2 bottleneck; the multi-valued inverse plus linear calibration is the Dataset~1 bottleneck. PCC is kept as a classical baseline, not as a competitive method.
 
 \section{Feed-forward neural IK}
@@ -165,7 +162,7 @@ Inference time per target (ms)           & $0.08$        & $0.08$        & $0.01
 \end{tabularx}
 \end{table}
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig/mlp_pred_vs_actual.pdf}
 \caption[Predicted versus actual valve/chamber commands for the tip-only network.]{Predicted versus actual valve and chamber commands for the tip-only feed-forward network on the test split of each dataset. Top row: Dataset 2 valves $1$--$3$. Bottom two rows: Dataset 1 chambers $1$--$6$. Diagonal lines mark $\hat{y} = y$; the per-output coefficient of determination is reported in each panel title. The network tracks the Dataset 2 valves tightly across the full command range; on Dataset 1, chambers $2$ and $4$ sit at or below chance predictions ($R^{2} \le 0.04$).}
@@ -183,7 +180,6 @@ $R^{2} = 0.323$ with early stopping at epoch~$4$, and chambers~2 and 4 sit at or
 
 The tip-plus-mid network of Section~\ref{sec:mlp_tipmid} was trained on the same Dataset 1 training split as the tip-only variant of Section~\ref{sec:res_mlp_tip}, with the only change being the extension of the input to the six-dimensional vector $(x_{\mathrm{tip}}, y_{\mathrm{tip}}, z_{\mathrm{tip}}, x_{\mathrm{mid}}, y_{\mathrm{mid}}, z_{\mathrm{mid}})$. Both variants were then evaluated on the identical set of $11{,}956$ joint-valid test frames.
 
-\paragraph{Aggregate.}
 Mid-marker input cuts MAE $20.13 \to 17.05$ ($-15\%$) and lifts $R^{2}$ $0.323 \to 0.437$ (Table~\ref{tab:res_mlp_tipmid}); best epoch rises from $4$ to $21$, consistent with a richer input supplying useful signal over roughly five times as many training passes before plateau.
 
 \begin{table}[ht]
@@ -204,17 +200,15 @@ Per-frame RMSE mean (command units)      & $24.04$            & $21.75$         
 \end{tabularx}
 \end{table}
 
-\paragraph{Paired test.}
 On the same $11{,}956$ joint-valid frames, tip-plus-mid wins on $62.58\%$; mean per-frame RMSE gap $+2.29$ (bootstrap $95\%$ CI $[+2.15,\, +2.43]$); Wilcoxon $p \approx 2.4 \times 10^{-211}$. Fig~\ref{fig:res_mlp_paired} shows the shifted distribution.
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig/mlp_paired_error_diff.pdf}
 \caption[Per-frame paired RMSE difference: tip-only minus tip-plus-mid.]{Distribution of per-frame pressure-RMSE differences (tip-only minus tip-plus-mid) on the $11{,}956$ joint-valid test frames of Dataset 1. Positive values indicate frames where adding the mid marker reduced the pressure error. The distribution is shifted to the positive side (mean $+2.29$, median $+2.53$ command units), and the Wilcoxon signed-rank test returned $p \approx 2.4 \times 10^{-211}$.}
 \label{fig:res_mlp_paired}
 \end{figure}
 
-\paragraph{Interpretation.}
 The mid marker pins the per-segment bending split that the tip alone leaves ambiguous. $R^{2} = 0.437$ still sits far below Dataset~2's $0.927$, so residual sources---random-walk excitation, hysteresis---remain; Section~\ref{sec:res_lstm} examines them recurrently.
 
 \section{Temporal LSTM IK}
@@ -254,7 +248,7 @@ MAE $20.15 \to 21.00$, $R^{2}$ $0.323 \to 0.283$; best epoch collapses to $1$--$
 \paragraph{Dataset 1 tip-plus-mid: best DS1 configuration.}
 MAE $17.05 \to 16.77$, $R^{2}$ $0.437 \to 0.506$, per-frame RMSE $21.75 \to 20.58$ (Fig~\ref{fig:res_lstm_ds1_all}). Once the mid marker pins the per-segment configuration, historical mid coordinates carry motion-direction information the feed-forward cannot access.
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.85\linewidth]{fig/lstm_ds1_all_variants.pdf}
 \caption[Four Dataset 1 inverse-kinematics variants side by side.]{Mean per-frame pressure RMSE on the Dataset 1 test set for the four inverse-kinematics variants compared here, evaluated on the identical LSTM-windowed test rows. Adding the mid marker is the dominant driver of improvement on both architectures, and temporal context helps only once the mid input is present.}
@@ -283,14 +277,13 @@ Dataset 2, tip-only             & $20$ & $138.68$   & $0.934$  & $16$        \\
 \end{tabularx}
 \end{table}
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.95\linewidth]{fig/lstm_window_sweep.pdf}
 \caption[LSTM test MAE against window length on each dataset.]{Test-set pressure MAE of the LSTM against window length $K$ on each dataset. Dataset 2 (right) benefits monotonically from longer windows; Dataset 1 (left) does not benefit, and the best-epoch index of its training run collapses as $K$ grows, which is consistent with faster over-fitting when the added context carries no generalisable signal.}
 \label{fig:res_lstm_sweep}
 \end{figure}
 
-\paragraph{Interpretation.}
 Recurrent architectures buy accuracy only when the single-frame input is informative enough for the $K$-frame trajectory to carry physically meaningful signal: once the mid marker pins the per-segment configuration, recurrent tip-plus-mid wins. The $20.58$ per-frame RMSE is the lowest Dataset~1 result and is carried forward to Sections~\ref{sec:res_jacobian} and~\ref{sec:res_traj}.
 
 \section{Jacobian-learned IK}
@@ -298,7 +291,6 @@ Recurrent architectures buy accuracy only when the single-frame input is informa
 
 Jacobian-IK was evaluated through closed-loop position error (primary) and pressure-space error (secondary); the two give opposite rankings.
 
-\paragraph{FK arbiter quality.}
 Dataset~2: MAE $2.55$\,mm, $R^{2} = 0.932$, best epoch $38$. Dataset~1: MAE $12.97$\,mm, $R^{2} = 0.675$, best epoch $2$ (same early plateau as Section~\ref{sec:res_mlp_tip}).
 
 \paragraph{Closed-loop error.}
@@ -349,14 +341,13 @@ Jacobian, nearest-neighbour         & $230.10$          & $27.53$           \\
 \paragraph{Initialisation ablation.}
 On Dataset~2 zero initialisation fails on $22\%$ of targets (mean $4.79$\,mm, max $230$\,mm): the zero vector lies far outside $[0, 2500]$ and the local Jacobian points unreliably. Warm-start and nearest-neighbour give near-identical closed-loop error, with warm-start fewer iterations. Dataset~1 converges on every target for all three strategies because its random-walk distribution is centred near zero. Fig~\ref{fig:res_jacobian_convergence} shows typical convergence on ten Dataset~2 quantile-selected targets: nine drop below the $1$\,mm tolerance within $\sim$$10$ iterations; the worst plateaus above tolerance, representing the $\sim$$1.5\%$ that did not converge.
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.85\linewidth]{fig/jacobian_convergence.pdf}
 \caption[Jacobian-IK convergence trajectories on ten Dataset 2 targets.]{Per-iteration position error of the Jacobian-learned inverse kinematics with feed-forward warm-start on ten Dataset 2 test targets selected by quantile of final error. The horizontal dashed line marks the $1$\,mm convergence tolerance. Nine of the ten targets drop below the tolerance within about ten iterations and then oscillate at the floor of the DLS step; the worst-quantile target plateaus above the tolerance and is typical of the small non-converged fraction.}
 \label{fig:res_jacobian_convergence}
 \end{figure}
 
-\paragraph{Runtime and interpretation.}
 $46$\,ms per target is $\sim$$900\times$ slower than the MLP but still under a $20$\,Hz controller budget; a $1$\,kHz loop would not be reachable. Cost is dominated by reverse-mode autograd and the DLS solve (Eq.~\ref{eq:dls_step}), so runtime scales with iteration count rather than the $50$-cap. The two methods are therefore complementary: Jacobian iteration for position-space accuracy (primary in Section~\ref{sec:res_traj}), feed-forward for pressure-space reporting and kHz latency.
 
 \section{Sim-to-real with PyElastica}
@@ -371,7 +362,7 @@ The Young's-modulus scan described in Section~\ref{sec:sim_setup} selected $E = 
 
 Fig~\ref{fig:res_sim_cal} shows the two anchors over the twenty-point logarithmic grid of Young's-modulus values. The bending anchor is monotone decreasing in $E$ across the grid, which gives a clean calibration signal and localises the best value to a narrow band near $10^{5}$\,Pa. The elongation anchor is almost flat between $9 \times 10^{4}$ and $10^{6}$\,Pa: the rest-length pre-stretch is prescribed by the coupling constant $k_L$ independently of $E$ (Eq.~\eqref{eq:sim_stretch}), so the residual eight-percentage-point gap above the $85\%$ target is set by the gravity sag of the free end rather than by the stiffness of the rod. Retuning $k_L$ toward $5.8 \times 10^{-6}$\,Pa$^{-1}$ would collapse the elongation residual below $2\%$, but the $9.2\%$ value already satisfies the acceptance criterion, so the coupling constants were not altered.
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig/sim_calibration.pdf}
 \caption[Young's-modulus calibration against the two I-Support anchors.]{Measured bending angle (left) and axial elongation (right) against Young's modulus $E$, across the twenty-point logarithmic grid of Section~\ref{sec:sim_setup}. Horizontal dashed lines mark the I-Support anchors ($118^{\circ}$ and $85\%$, from Manti et al.\ \cite{manti2016soft}); the vertical dotted line marks the calibrated value $E = 8.86 \times 10^{4}$\,Pa.}
@@ -383,10 +374,8 @@ The calibrated rod is not a digital twin of the Dataset 2 robot, whose geometry 
 \subsection{Sim-to-real transfer on Dataset 2}
 \label{sec:res_sim_transfer}
 
-\paragraph{Synthetic dataset.}
 $720$ training + $80$ validation synthetic $(\mathbf{P}, \mathbf{x})$ pairs were generated from the calibrated rod and rescaled to the Dataset~2 command range (Section~\ref{sec:sim_transfer}). The synthetic tip cloud spans $\approx 475 \times 482 \times 330$\,mm against Dataset~2's $\approx 100 \times 104 \times 64$\,mm and sits in a different region of tip space---a five-fold workspace mismatch against which the transfer results must be read.
 
-\paragraph{Headline.}
 Table~\ref{tab:res_sim_transfer} and Fig~\ref{fig:res_sim_efficiency}: Strategies A and B are within $\pm 1$ command unit at every budget. Strategy~C (sim-only) reaches pressure MAE $981$, $R^{2} = -1.71$.
 
 \begin{table}[ht]
@@ -405,14 +394,13 @@ $100\%$          & $12{,}650$           & $150.21$   & $150.16$   & $0.927$     
 \end{tabularx}
 \end{table}
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig/sim2real_data_efficiency.pdf}
 \caption[Data efficiency of the three sim-to-real strategies.]{Pressure MAE (left) and $R^{2}$ (right) on the Dataset 2 test split against the real-data budget, for the three strategies of Section~\ref{sec:sim_transfer}. Strategies A and B overlap at every budget. The Strategy-C horizontal line (sim-only, no real data) sits well above the best real-trained networks on MAE and well below them on $R^{2}$.}
 \label{fig:res_sim_efficiency}
 \end{figure}
 
-\paragraph{Interpretation.}
 Strategy~B matches Strategy~A within the repeated-training noise floor; pre-training therefore neither helps nor hurts. Strategy~C's $R^{2} = -1.71$ (worse than a per-chamber mean regressor) is the direct consequence of the workspace mismatch: a network trained on $[-241, 251]$\,mm tips is asked to predict in $[-48, 56]$\,mm where almost none of its training data lives. Most of the real-data gain lies in the $10\% \to 25\%$ jump (MAE $185 \to 163$); $25\%$--$100\%$ adds little. The bottleneck is geometric, not sample count---a Manti-inspired rod is not a drop-in prior for an undocumented robot. Chapter~\ref{chap:discussion} revisits this alongside the PCC negatives.
 
 \section{Trajectory tracking}
@@ -420,7 +408,6 @@ Strategy~B matches Strategy~A within the repeated-training noise floor; pre-trai
 
 Every trained method was scored on four reference trajectories (circle, square, figure-of-eight, helical spiral; $120$ target points each, safe radius $11.9$\,mm on Dataset~1 and $7.0$\,mm on Dataset~2), with all predicted pressures passed through the shared FK arbiter so differences are IK-quality differences only.
 
-\paragraph{Overall ranking.}
 Table~\ref{tab:res_traj_overall} and Fig~\ref{fig:res_traj_bar}: Dataset~1 winner is warm-started Jacobian-IK at $0.77$\,mm (an order of magnitude below every alternative); Dataset~2 winner is Strategy-B Sim2Real at $6.20$\,mm. Tip-plus-mid is the Dataset~1 outlier at $19.08$\,mm---see below.
 
 \begin{table}[ht]
@@ -441,7 +428,7 @@ Sim-to-real MLP (Strategy B, $100\%$ budget)         & ---                 & $\m
 \end{tabularx}
 \end{table}
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig/trajectory_tracking_bar.pdf}
 \caption[Trajectory-tracking accuracy by method and dataset.]{Mean trajectory-tracking error by method, per dataset, averaged over the four reference trajectories. The asterisk on the tip-plus-mid bar marks the mid-marker substitution discussed in the text.}
@@ -457,7 +444,7 @@ The tip-plus-mid MLP (best feed-forward on per-sample pressure MAE) is the worst
 \paragraph{Dataset 2: Sim2Real MLP wins; Jacobian-IK diverges on the spiral.}
 Sim2Real MLP reaches $6.20$\,mm, $1.2$\,mm below tip-only real-only at $7.40$\,mm and consistent across circle/square/figure-of-eight (Table~\ref{tab:res_traj_ds2_per_traj})---opposite to the per-sample evaluation where A and B tied. Likely reason: the tracking evaluation uses a small smooth interior subset where the sim prior mildly regularises, whereas the edge-covering per-sample evaluation dilutes that effect. Warm-started Jacobian-IK comes fifth at $13.37$\,mm: circle/square/figure-of-eight sit at $6.84$--$7.38$\,mm, comparable with feed-forward methods, but the spiral rises to $31.94$\,mm with a $258.55$\,mm single-target max. The spiral covers the full $z$-half-extent, approaching the edge of the FK network's valid range; with only three valves there is no redundancy to recover from a poor DLS step, and one diverging run inflates the mean. Feed-forward methods degrade gracefully because a single forward pass cannot diverge; the divergence is visible in the bottom-right panel of Fig~\ref{fig:res_traj_overlay_ds2}.
 
-\begin{figure}[ht]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig/trajectory_overlay_ds2.pdf}
 \caption[Target and achieved trajectories on Dataset 2.]{Target trajectories (black) and achieved trajectories (one colour per method) on Dataset 2 for the circle, square, figure-of-eight, and helical spiral panels. Achieved positions are the output of the shared forward-kinematics arbiter of Section~\ref{sec:jacobian} applied to each method's predicted pressure command. The spiral panel at the bottom right shows the diverging Jacobian-learned trajectory discussed above. The figure legend uses the experiment identifiers of the underlying raw artefact: ``PCC (Exp 1A)'' is the single-segment PCC of Section~\ref{sec:res_pcc_single}, ``MLP-2A (tip)'' is the tip-only feed-forward network of Section~\ref{sec:res_mlp_tip}, ``MLP-2B (tip+mid\textsuperscript{$\ast$})'' is the tip-plus-mid feed-forward network with the mid-centroid substitution, ``LSTM (tip)'' is the tip-only recurrent network of Section~\ref{sec:res_lstm}, ``Jacobian-IK'' is the warm-started Jacobian-learned iteration of Section~\ref{sec:res_jacobian}, and ``Sim2Real-MLP'' is the Strategy-B sim-to-real network of Section~\ref{sec:res_sim_transfer}.}
@@ -481,13 +468,10 @@ Sim-to-real MLP                                & $\mathbf{5.82}$  & $\mathbf{5.8
 \end{tabularx}
 \end{table}
 
-\paragraph{Recurrent and smoothness.}
 LSTM tracking error sits within $1$\,mm of the corresponding feed-forward network on every trajectory; temporal context adds nothing at these smooth slow trajectories. It does win on pressure-command jerk $\mathcal{J}$ (Eq.~\ref{eq:traj_jerk}): on Dataset~1, LSTM $\mathcal{J} \in [0.03, 0.30]$, MLP $[1, 80]$, Jacobian-IK $[2 \times 10^{2}, 10^{3}]$---the hidden-state low-pass vs target-by-target DLS restart. Dataset~2 preserves the ordering at larger absolute scale.
 
-\paragraph{Inference time.}
 $0.01$\,ms (PCC), $0.2$\,ms (feed-forward), $0.3$\,ms (LSTM), $27$\,ms (warm-start Jacobian). All fit $20$\,Hz; none fit $1$\,kHz. Only Jacobian has meaningful tracking-rate latency.
 
-\paragraph{Interpretation.}
 Two regimes. With redundancy and a well-conditioned FK arbiter (Dataset~1), Jacobian-IK drives tracking to the tolerance floor. Without redundancy (Dataset~2, three valves), Jacobian-IK can diverge at workspace edges and a sim-to-real MLP is the best tracker. Recurrent and tip-plus-mid advantages from the per-sample evaluation do not extend to smooth slow tracking; the tip-plus-mid failure here is a mid-substitution artefact. Revisited in Chapter~\ref{chap:discussion}.
 
 \section{Overall comparison}
@@ -533,7 +517,6 @@ Sim-to-real MLP (Strategy B, $100\%$ budget)     & $150.16$             & $0.928
 \paragraph{No single method dominates every metric.}
 Three regimes: (1)~pressure-space Dataset~2---tip-only LSTM, tip-only MLP, Strategy-B all within $\pm 1$ command unit ($143$--$150$ MAE, $R^{2} \approx 0.93$), an order of magnitude above PCC. (2)~Pressure-space Dataset~1---tip-plus-mid LSTM leads (MAE $16.77$, $R^{2} = 0.506$; $-48\%$ vs PCC). (3)~Position-space---warm-started Jacobian-IK wins the over-actuated Dataset~1 ($0.71$\,mm per-sample, $0.77$\,mm trajectory, at the marker-noise floor) but can diverge at the under-actuated Dataset~2's workspace edges (per-sample $0.78$\,mm, trajectory $13.37$\,mm due to one diverging spiral run); Strategy-B Sim2Real is the best Dataset~2 tracker at $6.20$\,mm. Choice depends on actuation redundancy and whether the controlled quantity is position or pressure.
 
-\paragraph{Asterisks.}
 Tip-plus-mid trajectory entry $19.08^{\ast}$ reflects the mid-marker centroid substitution (OOD input, not a network property; Section~\ref{sec:res_traj}). PCC Dataset~2 MAE $285.2^{\dagger}$ is reachable-subset only (penalised full-set mean $87.64$\,mm; Table~\ref{tab:res_pcc_single}).
 
 \section{Ablation studies}
@@ -569,5 +552,4 @@ Zero init fails $22\%$ of Dataset~2 targets. Warm-start converges $98.5\%$ (Data
 \paragraph{Sim pre-training data efficiency.}
 Strategy~B $-$ Strategy~A within $\pm 1$ command unit at all four budgets ($10/25/50/100\%$); no measurable benefit. Strategy~C: MAE $981$, $R^{2} = -1.71$. Most gain in $10\% \to 25\%$ (MAE $185 \to 163$). Bottleneck is the $5\times$ workspace mismatch, not real-data budget.
 
-\paragraph{Not swept.}
 DLS $\lambda = 0.05$, $\alpha = 0.5$, $\tau = 1$\,mm from Fang et al.; hidden widths from pilot runs; simulator $k_m, k_L$ fixed to bracket the I-Support anchors. Natural targets for a future sensitivity study.
