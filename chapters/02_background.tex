@@ -1,100 +1,63 @@
 \chapter{Background and Literature Review}
 \label{chap:background}
 
-The four inverse-kinematics method families compared in this thesis---analytical piecewise-constant-curvature, feed-forward neural regression, recurrent neural regression, and Jacobian-learned iteration---have been proposed and evaluated across a fragmented literature. This chapter reviews that literature under a single problem-driven organisation, so that the comparative evaluation of Chapters~\ref{chap:methods} and~\ref{chap:results} can be read against a coherent frame. The chapter is organised along eight axes: the motivation for soft-robot control (Section~\ref{sec:bg_motivation}), the structural reasons inverse kinematics is hard on pneumatic soft arms (Section~\ref{sec:bg_ik_difficulty}), the modelling hierarchy that connects PCC to Cosserat and finite-element methods (Section~\ref{sec:bg_models}), the learning-based inverse-kinematics families themselves (Section~\ref{sec:bg_ml_ik}), the sensing and observability assumptions that every learning-based method inherits from its dataset (Section~\ref{sec:bg_sensing}), the simulation and sim-to-real infrastructure the field has developed (Section~\ref{sec:bg_sim}), the evaluation metrics and published baselines that scale the quantitative findings (Section~\ref{sec:bg_metrics}), and the research gap that this thesis is positioned against (Section~\ref{sec:bg_gap}).
+This chapter reviews the literature along the lines most relevant to the comparative evaluation of Chapters~\ref{chap:methods}--\ref{chap:results}: the motivation for soft-robot control and why the inverse is hard (Sections~\ref{sec:bg_motivation}--\ref{sec:bg_ik_hard}), the modelling and learning method families (Sections~\ref{sec:bg_models_hierarchy}--\ref{sec:bg_ml_ik}), sensing and simulation infrastructure (Sections~\ref{sec:bg_sensing}--\ref{sec:bg_sim}), evaluation baselines (Section~\ref{sec:bg_metrics}), and the research gap the thesis is positioned against (Section~\ref{sec:bg_gap}).
 
 \section{Soft robots and the control motivation}
 \label{sec:bg_motivation}
 
-Soft and continuum robots are attractive in human-facing and confined-space environments because they can bend continuously, conform to irregular geometries, and interact more safely with delicate surroundings than rigid-link manipulators \cite{rus2015softrobots, burgnerkahrs2015medical, dupont2022medical}. Their bodies contribute to safe and adaptive interaction through their own mechanics rather than through rapid closed-loop stiffness control of rigid joints, and this property has driven the development of pneumatic, cable-driven, and tendon-driven designs across assistive, rehabilitation, and inspection applications \cite{rus2015softrobots, thuruthel2018survey}. This thesis focuses on the pneumatic subclass: silicone cylinders with several internal chambers that bend and elongate under pressurised air.
+Soft and continuum robots are attractive in human-facing and confined-space environments because they can bend continuously, conform to irregular geometries, and interact more safely with delicate surroundings than rigid-link manipulators \cite{rus2015softrobots, burgnerkahrs2015medical, dupont2022medical}. This thesis focuses on the pneumatic subclass: silicone cylinders with several internal chambers that bend and elongate under pressurised air.
 
-The same compliance that makes pneumatic soft manipulators safe also makes them difficult to control. The body deforms continuously under distributed pressure rather than moving through a small set of rigid joints, so the map from actuation input to end-effector position is nonlinear, design-specific, and often history-dependent because of viscoelasticity, pneumatic lag, and fabrication variability \cite{rus2015softrobots, thuruthel2018survey, kim2021mlsoft}. The control problem can be written abstractly as
+The same compliance that makes these arms safe also makes them difficult to control: the body deforms continuously under distributed pressure rather than moving through a small set of rigid joints, so the map from actuation to tip position is nonlinear, design-specific, and history-dependent through viscoelasticity, pneumatic lag, and fabrication variability \cite{rus2015softrobots, thuruthel2018survey, kim2021mlsoft}. The control problem can be written as
 \begin{equation}
   \mathbf{x}_{t} = f(\mathbf{u}_{t};\, \boldsymbol{\theta}, \boldsymbol{\eta}_{t}),
   \label{eq:bg_forward}
 \end{equation}
-where $\mathbf{u}_{t}$ is the actuation command vector (chamber pressures or valve commands), $\mathbf{x}_{t}$ is the task-space output (typically tip position), $\boldsymbol{\theta}$ denotes robot-dependent physical parameters, and $\boldsymbol{\eta}_{t}$ collects latent effects such as hysteresis and other internal states. The inverse problem is the reverse: given a target $\mathbf{x}^{\ast}$, recover a command $\mathbf{u}$ that makes the robot attain that target. For pneumatic soft robots, the inverse is often harder than the forward map for three structural reasons that Section~\ref{sec:bg_ik_difficulty} analyses formally: the forward map is nonlinear; the robot may be redundant, so multiple commands can yield nearly the same tip position; and the tip alone may not identify the underlying body shape.
+with $\mathbf{u}_{t}$ the actuation command, $\mathbf{x}_{t}$ the tip position, $\boldsymbol{\theta}$ the robot-dependent parameters, and $\boldsymbol{\eta}_{t}$ the latent history; the inverse problem recovers a $\mathbf{u}$ that attains a target $\mathbf{x}^{\ast}$.
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=0.95\linewidth]{fig/bg_problem_setup.png}
-\caption[Generic control problem for pneumatic soft-robot inverse kinematics.]{Generic control problem for pneumatic soft-robot inverse kinematics. The forward map $\mathbf{x}_{t} = f(\mathbf{u}_{t};\, \boldsymbol{\theta}, \boldsymbol{\eta}_{t})$ from actuation command to tip position is mediated by the pneumatic body, robot-dependent parameters $\boldsymbol{\theta}$, and latent history variables $\boldsymbol{\eta}_{t}$; the observation $\mathbf{y}_{t}$ may be the tip alone or include additional partial-shape information. The inverse (orange) is multi-valued when actuation degrees of freedom exceed task dimensions, and is further complicated by nonlinearity, partial observability, and model mismatch.}
-\label{fig:bg_problem_setup}
-\end{figure}
+The pneumatic platform of Dataset~1 is the I-Support manipulator \cite{manti2016soft, ansari2017assistive, zlatintsi2020isupport}; the version used here is the additively-manufactured AM-I-Support, in which the original latex--silicone chambers are replaced by 3D-printed thermoplastic polyurethane of Shore~80A hardness \cite{centurelli2022closed, alessi2024pushing}. Two modules are assembled in series with a $60^{\circ}$ inter-module offset, giving six chambers covering the full actuation circle \cite{bianchi2024softoss}. Dataset~2 is an undocumented three-valve recording of unknown geometry and material, treated as a black box throughout. Detailed parameters of both datasets are given in Section~\ref{sec:datasets}; this chapter refers to them only to fix the regime---over-actuated six-chamber versus under-documented three-valve---against which the literature claims are later tested.
 
-The pneumatic platform that supplies Dataset~1 of this thesis is the I-Support manipulator, originally developed by Manti et al.\ \cite{manti2016soft} at the BioRobotics Institute of Scuola Superiore Sant'Anna as an assistive platform for elderly care \cite{ansari2017assistive, zlatintsi2020isupport}. The present-generation variant used in Dataset~1 is the additively-manufactured \emph{AM-I-Support}, in which the original latex--silicone chambers are replaced by 3D-printed thermoplastic polyurethane of Shore~80A hardness \cite{centurelli2022closed, alessi2024pushing}. Two modules are assembled in series with a $60^{\circ}$ inter-module offset so that six chambers together cover the full actuation circle; chambers~$1$--$3$ belong to the proximal module and chambers~$4$--$6$ to the distal one \cite{bianchi2024softoss}. Dataset~2, by contrast, is an undocumented three-valve pneumatic recording with unknown geometry and material; its treatment in this thesis therefore proceeds without any physical-model assumptions. The detailed parameters of both datasets are reported in Section~\ref{sec:datasets}, and the present chapter refers to them only to fix the regime---over-actuated six-chamber versus under-documented three-valve---against which the literature claims will later be tested.
+\section{Why inverse kinematics of pneumatic soft robots is hard}
+\label{sec:bg_ik_hard}
 
-\section{Why inverse kinematics of pneumatic soft robots is fundamentally difficult}
-\label{sec:bg_ik_difficulty}
-
-A useful way to formalise soft-robot inverse kinematics is as a constrained optimisation or inference problem:
+Soft-robot inverse kinematics can be formalised as a constrained optimisation,
 \begin{equation}
   \mathbf{u}^{\ast} = \arg\min_{\mathbf{u}}\; \| f(\mathbf{u};\, \boldsymbol{\theta}, \boldsymbol{\eta}) - \mathbf{x}^{\ast} \|_{2}^{2} + \lambda\, R(\mathbf{u}),
   \label{eq:bg_ik_obj}
 \end{equation}
-where $R(\mathbf{u})$ is a regulariser encoding feasibility, smoothness, energy, safety, or branch preference. This form highlights an important difference from rigid-robot inverse kinematics. For a rigid arm with well-measured joints and a deterministic geometry, the inverse is often treated as a geometric map; for a pneumatic soft manipulator, by contrast, the inverse is frequently a relation rather than a function.
+where $R(\mathbf{u})$ encodes feasibility, smoothness, energy, or branch preference. Three structural challenges make the inverse harder than the forward map.
 
-If the actuation dimension $n_{u}$ exceeds the task-space dimension $n_{x}$, the inverse is generically \emph{set-valued}: two different pressure vectors can place the tip at nearly the same point while producing different internal shapes. This is not a minor nuisance---it changes what a learning system is asked to approximate. A direct regressor from $\mathbf{x}^{\ast}$ to $\mathbf{u}$ is being trained to learn one representative solution among many valid ones. If the training data mix several branches, mean-squared regression can collapse them into an averaged command that is numerically plausible but physically suboptimal or even unrealisable \cite{wang2021mlsurvey, giorelli2015nn, fang2022jacobian}. The two-module I-Support of Dataset~1, with six chamber pressures mapping into a three-dimensional tip position, is a canonical instance of this over-actuated regime.
+\paragraph{Set-valued inverse.}
+When the actuation dimension $n_{u}$ exceeds the task-space dimension $n_{x}$, several commands place the tip at the same point with different internal shapes. A direct regressor trained with squared error is then asked to approximate a single branch of a relation, and can collapse to an averaged command that is physically suboptimal or unrealisable \cite{wang2021mlsurvey, giorelli2015nn, fang2022jacobian}. Dataset~1 (six chambers, three-dimensional tip) is the canonical over-actuated case.
 
-History dependence creates a second challenge. Soft pneumatic actuators exhibit rate effects, creep, hysteresis, and flow dynamics, so the same target may require different inputs depending on the recent trajectory of the state \cite{thuruthel2018survey, thuruthel2019modelbased, tariverdi2021rnn}. In principle, this means the inverse map should depend not only on the current target but also on a short window of past states or commands. A static regressor will miss this dependence unless the observable input already contains enough information about the latent state.
+\paragraph{History dependence.}
+Soft pneumatic actuators show rate effects, creep, hysteresis, and flow dynamics, so the same target may require different inputs depending on the recent trajectory of the state \cite{thuruthel2018survey, thuruthel2019modelbased, tariverdi2021rnn}. A static regressor will miss this dependence unless the observable input already carries information about the latent state.
 
-Finally, sensing coverage matters. End-point observation alone is often insufficient for state identification in deformable bodies. If only the tip is observed, the internal configuration remains partially hidden; if additional shape information is measured---a mid-body marker, an embedded strain sensor, or a distributed proprioceptive signal---the inverse becomes better posed \cite{sincak2024sensing, wang2024proprioception}. Sensing is therefore not merely an auxiliary engineering detail; it changes the identifiability structure of the control problem itself, a point that Section~\ref{sec:bg_sensing} develops further and that the mid-marker ablation of Section~\ref{sec:res_mlp_tipmid} tests empirically.
+\paragraph{Partial observability.}
+End-point sensing alone typically under-identifies the internal configuration of a deformable body; partial-shape observations (a mid-body marker, strain sensor, or proprioceptive signal) change the identifiability structure, not just the input features \cite{sincak2024sensing, wang2024proprioception}. Section~\ref{sec:bg_sensing} revisits this; the tip-plus-mid ablation of Section~\ref{sec:res_mlp_tipmid} tests it empirically.
 
 \section{Modelling hierarchy for soft-robot control}
-\label{sec:bg_models}
+\label{sec:bg_models_hierarchy}
 
-The soft-robot control literature is organised around a familiar trade-off: analytical tractability versus physical fidelity \cite{webster2010review, rucker2011statics, gazzola2018pyelastica, mengaldo2022embodied, armanini2023structured}. At one end sit geometric approximations that are fast and interpretable but structurally restrictive; at the other end sit mechanics-based simulations that capture richer deformation modes but are slower to invert and harder to calibrate. Figure~\ref{fig:bg_model_hierarchy} summarises the hierarchy that the following subsections discuss in order.
+The literature organises along an analytical-tractability versus physical-fidelity trade-off summarised in Table~\ref{tab:bg_models} \cite{webster2010review, rucker2011statics, gazzola2018pyelastica, mengaldo2022embodied, armanini2023structured}.
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=0.95\linewidth]{fig/bg_model_hierarchy.png}
-\caption[Modelling hierarchy for soft-robot control.]{Modelling hierarchy for soft-robot control. Fast and interpretable geometric models (PCC) sit at the low-cost end; Cosserat-rod and finite-element models increase physical fidelity at the cost of slower inversion and heavier parameter identification. Learned surrogates occupy a hybrid position: they can be fitted at any level and used to invert the corresponding forward map.}
-\label{fig:bg_model_hierarchy}
-\end{figure}
-
-\subsection{Piecewise constant curvature (PCC)}
+\paragraph{Piecewise constant curvature (PCC).}
 \label{sec:bg_models_pcc}
+PCC approximates each segment as a circular arc of constant curvature and supports closed-form or near-closed-form inverse kinematics \cite{webster2010review}; it is the natural analytical baseline for many soft-robot studies and is used as such in Sections~\ref{sec:pcc_single}--\ref{sec:pcc_multi}. The constant-curvature assumption fails under gravity, torsion, asymmetric reinforcement, extension, or contact \cite{webster2010review, mengaldo2022embodied, armanini2023structured}; when those effects are substantial the model is not merely noisy but biased by design.
 
-The classical reduced-order model in continuum robotics is the piecewise-constant-curvature (PCC) approximation \cite{webster2010review}. In PCC, a segment of the robot is treated as a circular arc with arc length $L$, curvature $\kappa$, and bending-plane azimuth $\varphi$. A common tip-position expression for a single section is
-\begin{equation}
-  \mathbf{p}(\kappa, \varphi, L) =
-  \begin{pmatrix}
-    \dfrac{1 - \cos(\kappa L)}{\kappa}\cos\varphi \\[4pt]
-    \dfrac{1 - \cos(\kappa L)}{\kappa}\sin\varphi \\[4pt]
-    \dfrac{\sin(\kappa L)}{\kappa}
-  \end{pmatrix},
-  \qquad \kappa \neq 0,
-  \label{eq:bg_pcc_tip}
-\end{equation}
-with the straight-limit case $\kappa \to 0$ yielding $\mathbf{p} = [0, 0, L]^{\top}$. For a multi-section robot, the full pose is obtained by composing section transforms,
-\begin{equation}
-  T_{\mathrm{tip}} = \prod_{i=1}^{m} T_{i}(\kappa_{i}, \varphi_{i}, L_{i}).
-  \label{eq:bg_pcc_multi}
-\end{equation}
-PCC remains popular because it is fast, easy to interpret, and often sufficient as a first baseline \cite{webster2010review}. It supports analytical Jacobians and, in favourable cases, closed-form or near-closed-form inverse kinematics. That is why it is still the natural analytical reference point for many soft-robot inverse-kinematics studies, and why the single-segment PCC of Section~\ref{sec:pcc_single} and the two-segment PCC of Section~\ref{sec:pcc_multi} are used as classical baselines in this thesis.
-
-The limitation is structural. PCC assumes each section behaves like a constant-curvature arc. This can fail under gravity, nonuniform loading, torsion, asymmetric reinforcement, extension, or contact \cite{webster2010review, mengaldo2022embodied, armanini2023structured}. In pneumatic manipulators, elongation and curvature can couple, and curvature can vary significantly along the body. When these effects are substantial, PCC is not simply noisy; it can be biased by design.
-
-\subsection{Rod-based models and Cosserat mechanics}
+\paragraph{Cosserat-rod models.}
 \label{sec:bg_models_cosserat}
+Rod theory treats the backbone as a slender elastic body with centreline and cross-section orientation varying continuously along arclength, capturing nonconstant curvature, extension, shear, twist, and distributed loads \cite{rucker2011statics, gazzola2018pyelastica, mengaldo2022embodied, armanini2023structured}. The PyElastica library \cite{gazzola2018pyelastica} is the simulator adopted in Section~\ref{sec:sim_setup}.
 
-When constant-curvature assumptions become too restrictive, the next modelling level is typically rod theory, especially Cosserat-rod formulations \cite{rucker2011statics, gazzola2018pyelastica, mengaldo2022embodied, armanini2023structured}. These models treat the robot as a slender elastic body whose centreline and cross-section orientation vary continuously along arclength. In contrast to PCC, rod models can account for nonconstant curvature, extension, shear, twist, and distributed loads.
+\paragraph{Finite-element modelling (FEM).}
+Volumetric discretisation captures complex material laws, geometric nonlinearities, and contact at high computational cost and heavy parameter identification \cite{mengaldo2022embodied, armanini2023structured}; FEM is rarely inverted at run time and is instead used for offline data generation or as a physics prior \cite{gao2024residual, park2025dualae}.
 
-Rucker and Webster \cite{rucker2011statics} showed how continuum robots with general tendon routing and external loading can be modelled by coupling rod mechanics with actuation-specific loading terms. Gazzola et al.\ \cite{gazzola2018pyelastica} provided a practical simulation route for soft filaments, showing that rod-based mechanics can be used computationally for forward and inverse problems while retaining a wider set of deformation modes than PCC. More recent reviews by Mengaldo et al.\ \cite{mengaldo2022embodied} and Armanini et al.\ \cite{armanini2023structured} position rod models as a middle ground between simple geometric surrogates and full three-dimensional mechanics, with a particularly favourable balance for soft-robot control. The PyElastica implementation of Gazzola et al.\ is the simulator adopted for the sim-to-real study of Section~\ref{sec:sim_setup}.
-
-\subsection{Finite-element models and high-fidelity simulation}
-\label{sec:bg_models_fem}
-
-A further step in fidelity is full finite-element modelling (FEM), where the robot is discretised volumetrically rather than as a one-dimensional rod \cite{mengaldo2022embodied, armanini2023structured}. FEM can represent complex material laws, geometric nonlinearities, and contact with high realism, making it valuable for design studies, offline analysis, and some digital-twin pipelines. The cost is high computational overhead and increased parameter-identification burden. For control, FEM is rarely the model one inverts directly at run time; instead, it is often used to generate synthetic data or to supply a physics prior for a learned surrogate \cite{mengaldo2022embodied, gao2024residual, park2025dualae}.
-
-\subsection{Practical implication for this thesis}
-\label{sec:bg_models_implication}
-
-The modelling hierarchy suggests a useful interpretive framework. PCC is the correct analytical baseline, not because it is universally accurate, but because it shows what a tractable geometric approximation can and cannot recover. Rod or FEM-inspired models matter mainly in two ways: as a source of simulation data and as a structural prior that learning-based methods can exploit. The thesis therefore sits naturally in the literature gap between classical geometric inverse kinematics and hybrid learned control. Table~\ref{tab:bg_models} summarises the trade-off that organises the remainder of the chapter.
+\paragraph{Implication for this thesis.}
+PCC is retained as the analytical baseline (what a tractable geometric approximation can and cannot recover); a Cosserat rod is the sim-to-real source (Section~\ref{sec:sim_setup}); learned surrogates sit at every level.
 
 \begin{table}[ht]
 \centering
-\caption[Modelling levels used in soft-robot control.]{Modelling levels used in soft-robot control and the role each plays in a comparative inverse-kinematics study.}
+\caption[Modelling levels used in soft-robot control.]{Modelling levels used in soft-robot control and the role each plays in this thesis.}
 \label{tab:bg_models}
 \begin{tabularx}{\linewidth}{@{}l X X X X@{}}
 \toprule
@@ -112,65 +75,33 @@ Learned surrogate      & Data-driven mapping in input--output space      & Fast 
 \section{Machine learning and inverse-kinematics method families}
 \label{sec:bg_ml_ik}
 
-A method-oriented review is the most useful organisation for the rest of this chapter because this thesis directly compares several inverse-kinematics families rather than proposing only one new controller. The relevant taxonomy is: direct inverse learning (Section~\ref{sec:bg_ik_direct}), temporal or dynamic learning (Section~\ref{sec:bg_ik_temporal}), and hybrid learned-forward inversion (Section~\ref{sec:bg_ik_jac}), with reinforcement learning and policy learning as an adjacent strand (Section~\ref{sec:bg_ik_rl}) \cite{thuruthel2018survey, kim2021mlsoft, wang2021mlsurvey}.
+The relevant taxonomy, summarised in Table~\ref{tab:bg_methods}, distinguishes direct inverse learning, temporal or dynamic learning, and hybrid learned-forward inversion, with reinforcement learning as an adjacent strand \cite{thuruthel2018survey, kim2021mlsoft, wang2021mlsurvey}.
 
-\subsection{Direct inverse learning}
+\paragraph{Direct inverse learning.}
 \label{sec:bg_ik_direct}
+A feed-forward network $\hat{\mathbf{u}} = g_{\psi}(\mathbf{x}^{\ast})$ absorbs fabrication imperfections and nonlinearities directly from data \cite{kim2021mlsoft, wang2021mlsurvey}; Giorelli et al.\ \cite{giorelli2015nn} and Ma et al.\ \cite{ma2022bp} showed it outperforms analytical baselines on soft arms. The weakness is structural: on a multi-valued inverse the learned output drifts toward the branch-average \cite{wang2021mlsurvey, fang2022jacobian}, the failure mode that Dataset~1's feed-forward baseline exhibits in Section~\ref{sec:mlp_tip}.
 
-The simplest machine-learning approach is to learn an explicit inverse map
-\begin{equation}
-  \hat{\mathbf{u}} = g_{\psi}(\mathbf{x}^{\ast}),
-  \label{eq:bg_direct_inverse}
-\end{equation}
-or, when extra shape information is available,
-\begin{equation}
-  \hat{\mathbf{u}} = g_{\psi}\!\big([\mathbf{x}^{\ast},\, \mathbf{s}^{\ast}]\big),
-  \label{eq:bg_direct_inverse_shape}
-\end{equation}
-where $\mathbf{s}^{\ast}$ denotes additional internal-shape observations such as a mid-body marker or a distributed sensor readout. This is the basic feed-forward neural inverse-kinematics strategy.
-
-Direct inverse learning is attractive because it avoids deriving a full analytical model and can absorb fabrication imperfections and nonlinearities directly from data \cite{kim2021mlsoft, wang2021mlsurvey, giorelli2015nn, ma2022bp}. Giorelli et al.\ \cite{giorelli2015nn} provided one of the early empirical demonstrations that a small feed-forward network could outperform an analytical Jacobian method on a cable-driven soft arm with nonconstant curvature. Ma et al.\ \cite{ma2022bp} later reported that a back-propagation neural network predicted actuation more accurately than an analytical model on a three-chamber soft pneumatic actuator. Reviews by Kim et al.\ \cite{kim2021mlsoft} and Wang et al.\ \cite{wang2021mlsurvey} show that this direct-regression strategy remains the most common learning-based baseline in soft-robot control.
-
-The main weakness is structural. If the inverse is multi-valued, a deterministic regressor trained with standard losses is asked to approximate a single branch of a relation. Unless the data distribution or the sensor set disambiguates the branch, the learned output can drift toward an averaged solution \cite{wang2021mlsurvey, giorelli2015nn, fang2022jacobian}. This is a central issue for multi-segment or over-actuated pneumatic arms, and it is the failure mode that the feed-forward baseline of Section~\ref{sec:mlp_tip} exhibits on Dataset~1 despite a well-conditioned optimisation.
-
-\subsection{Temporal and recurrent models}
+\paragraph{Temporal / recurrent models.}
 \label{sec:bg_ik_temporal}
+Recurrent architectures introduce a latent state that carries history, capturing hysteresis and flow delay statistically rather than through explicit constitutive models \cite{thuruthel2019modelbased, tariverdi2021rnn}. Temporal context helps only if the past carries information about the hidden state: for i.i.d.\ data or impoverished features, recurrent models add complexity without solving identifiability \cite{wang2021mlsurvey, tariverdi2021rnn}. Section~\ref{sec:res_lstm} confirms this quantitatively.
 
-To model history dependence, recurrent architectures introduce a latent state that evolves through time:
-\begin{equation}
-  \mathbf{h}_{t} = \mathrm{LSTM}(\mathbf{z}_{t},\, \mathbf{h}_{t-1}), \qquad \hat{\mathbf{u}}_{t} = W \mathbf{h}_{t} + \mathbf{b},
-  \label{eq:bg_recurrent}
-\end{equation}
-where $\mathbf{z}_{t}$ may contain tip position alone or a richer feature vector including partial shape observations. The appeal of this approach is that hysteresis, creep, and pneumatic flow delay can be represented statistically rather than through an explicit constitutive model.
-
-The soft-robot literature supports this idea in two ways. Thuruthel et al.\ \cite{thuruthel2019modelbased} used recurrent forward models inside model-based reinforcement learning for closed-loop dynamic control, showing that dynamic soft-robot behaviour can be learned and exploited predictively. Tariverdi et al.\ \cite{tariverdi2021rnn} demonstrated that recurrent neural architectures can provide real-time dynamic prediction for soft continuum manipulators. These results justify recurrent inverse kinematics as more than a generic deep-learning fashion: it is a reasonable response to physically meaningful history dependence.
-
-Temporal context, however, only helps if the recent past actually contains information about the hidden state. If the data are effectively i.i.d., or if the observable features remain too impoverished to distinguish branches, recurrent models may add complexity without solving the identifiability problem \cite{wang2021mlsurvey, tariverdi2021rnn}. That is why recurrent methods are best interpreted jointly with sensing coverage rather than in isolation---a point that Section~\ref{sec:bg_sensing} and the tip-plus-mid LSTM experiment of Section~\ref{sec:res_lstm} develop quantitatively.
-
-\subsection{Hybrid learned-forward inversion and Jacobian-based methods}
+\paragraph{Jacobian-learned hybrid.}
 \label{sec:bg_ik_jac}
-
-A conceptually elegant alternative is to learn the \emph{forward} model and invert it iteratively. Let $f_{\theta}(\mathbf{u})$ be a learned map from actuation command to tip position. Then one updates the command via a damped least-squares step:
+One learns the forward map $f_{\theta}(\mathbf{u})$ and inverts it iteratively via damped least-squares:
 \begin{equation}
   \mathbf{u}_{k+1}
   = \mathbf{u}_{k}
-    + J_{f}(\mathbf{u}_{k})^{\top} \left( J_{f}(\mathbf{u}_{k}) J_{f}(\mathbf{u}_{k})^{\top} + \lambda^{2} I \right)^{-1} \big( \mathbf{x}^{\ast} - f_{\theta}(\mathbf{u}_{k}) \big),
+    + J_{f}(\mathbf{u}_{k})^{\top} \left( J_{f}(\mathbf{u}_{k}) J_{f}(\mathbf{u}_{k})^{\top} + \lambda^{2} I \right)^{-1} \big( \mathbf{x}^{\ast} - f_{\theta}(\mathbf{u}_{k}) \big).
   \label{eq:bg_jacobian_update}
 \end{equation}
-where $J_{f}(\mathbf{u}_{k})$ is the Jacobian of the learned forward map. This is the logic behind Jacobian-learned inverse kinematics \cite{fang2022jacobian}.
+The forward map is single-valued and therefore easier to learn, and the iteration commits to a single branch rather than averaging \cite{fang2022jacobian}. The limitation is that performance is capped by the learned forward model, which shapes the evaluation protocol of Section~\ref{sec:res_jacobian}.
 
-The attraction of this family is twofold. First, the forward map is usually single-valued and therefore easier to learn than the inverse. Second, iterative inversion allows the method to commit to one feasible local solution branch rather than averaging across several branches. Fang et al.\ \cite{fang2022jacobian} demonstrated this strategy together with a sim-to-real layer, showing that learned-forward Jacobian iteration can be effective for pneumatic soft robots.
-
-The limitation is subtle but important: performance is mediated by the learned forward model. A Jacobian-based method may look excellent under a shared learned forward arbiter because it optimises precisely that model, so evaluation protocols must distinguish convergence in forward-model space from closed-loop accuracy on the physical robot. This constraint directly shapes the evaluation of Section~\ref{sec:res_jacobian}.
-
-\subsection{Reinforcement learning and policy learning as adjacent literature}
-\label{sec:bg_ik_rl}
-
-A broader strand of work learns policies directly rather than isolating inverse kinematics, typically through model-based reinforcement learning or other policy-learning schemes \cite{thuruthel2019modelbased}. This literature is contextually important because it shows how soft-robot control extends beyond static inverse kinematics. It is not, however, the main centre of gravity of this thesis. Because the comparative study here holds datasets, metrics, and evaluation protocols fixed across inverse-kinematics families, policy-learning work is treated as adjacent background rather than as a head-to-head comparator.
+\paragraph{Reinforcement learning.}
+Policy-learning work \cite{thuruthel2019modelbased} extends soft-robot control beyond static inverse kinematics but is treated here as adjacent context rather than a head-to-head comparator, since this thesis holds dataset, metric, and protocol fixed across IK families.
 
 \begin{table}[ht]
 \centering
-\caption[Inverse-kinematics method families relevant to this thesis.]{Inverse-kinematics method families relevant to this thesis, with the core idea, main advantage, main failure mode, and the regime for which each family is best suited.}
+\caption[Inverse-kinematics method families relevant to this thesis.]{Inverse-kinematics method families relevant to this thesis.}
 \label{tab:bg_methods}
 \begin{tabularx}{\linewidth}{@{}l X X X X@{}}
 \toprule
@@ -188,82 +119,35 @@ Sim-pretrained / hybrid transfer & Simulation prior, fine-tune on real data     
 \section{Sensing, proprioception, and observability}
 \label{sec:bg_sensing}
 
-Recent literature increasingly shows that soft-robot control quality depends not only on the solver but also on what is observed \cite{sincak2024sensing, wang2024proprioception}. For deformable bodies, end-effector sensing alone often underdetermines the internal configuration; shape sensing and proprioception have therefore become a central research area in continuum robotics.
+Control quality depends on what is observed: end-effector sensing alone often under-identifies the internal configuration of a deformable body. Sincak et al.\ \cite{sincak2024sensing} reframe control performance as a sensing problem; Wang et al.\ \cite{wang2024proprioception} show that a mid-body observation is not just another input feature but an intervention that changes the identifiability of the problem.
 
-Sincak et al.\ \cite{sincak2024sensing} provide a broad review of continuum-robot sensing and classify the available approaches under electrical, magnetic, and optical principles. Their review is important for this thesis because it reframes control performance as a sensing problem: if the robot state is only partially observed, even a sophisticated control algorithm may be solving an intrinsically ambiguous problem. Poor inverse accuracy is not always a failure of the network architecture; it may be a failure of observability. Wang et al.\ \cite{wang2024proprioception} extend this line further by showing that internal-shape expectation and actual measurement can be fused for simultaneous proprioception and contact detection, demonstrating that internal-shape information changes the problem class: a mid-body observation is not just another input feature, it is an intervention that reduces uncertainty about the body state.
+For Dataset~1, the two-module AM-I-Support arm is driven by six actuation channels while only the tip is observed in the minimal sensing case, so the learning system is asked to infer a six-dimensional command from a three-dimensional target. A mid-segment observation makes the inverse better constrained; the tip-only versus tip-plus-mid comparison of Sections~\ref{sec:res_mlp_tipmid} and~\ref{sec:res_lstm} tests this observability hypothesis.
 
-This has a direct implication for the comparative study of this thesis. The two-module AM-I-Support arm of Dataset~1 is driven by six actuation channels while only the tip is observed in the minimal sensing case; the learning system is therefore asked to infer a six-dimensional command from a compressed three-dimensional target. If a mid-segment observation is added, the inverse becomes better constrained. The tip-only versus tip-plus-mid comparison of Sections~\ref{sec:res_mlp_tipmid} and~\ref{sec:res_lstm} tests an observability hypothesis in this sense: it asks whether the improvement produced by a single mid-marker triad exceeds what can be achieved by enlarging the network or the training set on the same tip-only input. Figure~\ref{fig:bg_observability} sketches the geometric intuition.
-
-\begin{figure}[ht]
-\centering
-\includegraphics[width=0.95\linewidth]{fig/bg_observability.png}
-\caption[Observability argument for tip-only versus tip-plus-mid sensing.]{Observability argument for tip-only versus tip-plus-mid sensing on a two-module soft arm. Left: different internal configurations can realise nearly the same tip position, so tip-only observation under-identifies the inverse. Right: a mid-body observation distinguishes the configurations, converting an ambiguous tip target into a better-observed state and making the inverse problem better posed.}
-\label{fig:bg_observability}
-\end{figure}
-
-\section{Simulation, digital twins, and sim-to-real transfer}
+\section{Simulation and sim-to-real transfer}
 \label{sec:bg_sim}
 
-Simulation plays a special role in soft robotics because accurate real-world data collection is slow, platform-specific, and often difficult to scale \cite{gazzola2018pyelastica, mengaldo2022embodied, armanini2023structured, fang2022jacobian, peng2018simtoreal, gao2024residual, park2025dualae}. A useful simulator can provide synthetic training data, safe controller prototyping, and a structured prior for transfer learning. The simulator used in this thesis is PyElastica, introduced by Gazzola et al.\ \cite{gazzola2018pyelastica} as a Python implementation of the special Cosserat-rod formulation of Section~\ref{sec:bg_models_cosserat}. PyElastica is open-source and Python-native, which simplifies its integration with the PyTorch training pipelines that the recent soft-robot inverse-kinematics literature uses; Section~\ref{sec:sim_setup} describes the specific rod and calibration procedure adopted here.
+Simulation provides synthetic training data, safe controller prototyping, and a structured prior for transfer learning \cite{gazzola2018pyelastica, fang2022jacobian, peng2018simtoreal, gao2024residual, park2025dualae}. The simulator used in this thesis is PyElastica \cite{gazzola2018pyelastica}, a Python implementation of the special Cosserat-rod formulation of Section~\ref{sec:bg_models_cosserat}; Section~\ref{sec:sim_setup} details the rod and calibration.
 
-The central question in sim-to-real research is not whether simulation is useful in principle but under what conditions it transfers. Four strategies have been developed in the literature. The first is \emph{direct transfer}, in which a network is trained on simulator data and deployed on the real robot with no real-data adaptation. This is typically a baseline rather than a production choice, because the real robot and the simulator almost always disagree on some aspect of the dynamics.
+Four sim-to-real strategies have emerged. \emph{Direct transfer} uses simulator weights unchanged on the real robot and is typically a lower baseline. \emph{Fine-tuning} a sim-pre-trained network on a small real-data budget is the most common soft-robotics route \cite{fang2022jacobian}. \emph{Domain randomisation} samples simulator parameters from distributions that span the expected real range \cite{peng2018simtoreal}; it is harder to apply to soft robots whose gaps include hysteresis, viscoelastic creep, and manufacturing asymmetries. \emph{Real-to-sim calibration and residual physics}, as in Gao et al.\ \cite{gao2024residual} and Park et al.\ \cite{park2025dualae}, either tune the simulator against real data or learn a residual correction on top of it. Across the four, the recurring finding is that transfer value is bounded above by geometric and kinematic overlap between simulator and real robot---the finding the PyElastica experiments of Chapter~\ref{chap:results} reproduce on Dataset~2.
 
-The second strategy is \emph{fine-tuning} a sim-pre-trained network on a small real-data budget. This is the most common soft-robotics route and is the one adopted by Fang et al.\ \cite{fang2022jacobian}, who reported a positive transfer result on a pneumatic platform for which a digital twin could be constructed. The cost is that the fine-tuning step discards part of what the pre-training learned whenever the simulator distribution does not overlap the real one.
-
-The third strategy is \emph{domain randomisation}, in which the simulator's parameters---mass, friction, actuator gains, and so on---are sampled from distributions that span the expected real-world range during training, so that the learned network is robust to any single parameter choice \cite{peng2018simtoreal}. Peng et al.\ \cite{peng2018simtoreal} demonstrated dynamics randomisation as a sim-to-real route for rigid-robot control. Domain randomisation is attractive when the reality gap can be captured by a small number of easily varied parameters; for soft robots, whose gaps include material hysteresis, viscoelastic creep, and manufacturing asymmetries that are difficult to parameterise analytically, the strategy is harder to apply directly.
-
-The fourth strategy is \emph{real-to-sim calibration and residual physics}, in which real data are used either to tune the simulator itself so that its outputs match the real robot on a held-out calibration sequence, or to learn a residual correction on top of a simulator that captures what the simulator fails to represent:
-\begin{equation}
-  f_{\mathrm{real}}(\mathbf{u}) \approx f_{\mathrm{sim}}(\mathbf{u}) + r_{\theta}(\mathbf{u}),
-  \label{eq:bg_residual}
-\end{equation}
-where the learned residual $r_{\theta}$ absorbs the mismatch. Gao et al.\ \cite{gao2024residual} show that this hybrid strategy can materially improve the sim-to-real fidelity of soft-robot models, including soft pneumatic arms with difficult-to-model reinforcements. Park et al.\ \cite{park2025dualae} take a related representation-alignment approach, using a dual cross-modal autoencoder to reduce the gap between simulated and real proprioceptive signals. The Section~\ref{sec:res_sim_cal} calibration of the PyElastica rod to the Manti \cite{manti2016soft} behavioural anchors is a simple form of the calibration strategy.
-
-Across these four strategies the soft-robotics sim-to-real literature converges on one recurring finding: the transfer value of a simulator is bounded above by its geometric and kinematic overlap with the real robot, and efforts to close the reality gap through architectural or regularisation tricks do not overcome a simulator whose workspace does not overlap the real one. This is the finding that the PyElastica experiments of Chapter~\ref{chap:results} reproduce on Dataset~2 and that the post-hoc analysis of Section~\ref{sec:disc_sim} dissects.
-
-\section{Evaluation metrics and benchmarks}
+\section{Evaluation metrics and published baselines}
 \label{sec:bg_metrics}
 
-This section surveys the metrics used to evaluate soft-robot inverse-kinematics methods in the literature (Sections~\ref{sec:bg_metrics_pose}, \ref{sec:bg_metrics_traj}) and identifies the published headline results that serve as scale markers for this thesis (Section~\ref{sec:bg_metrics_baselines}).
+Position-space error (Euclidean tip distance, optionally normalised by arm length) and pressure-space error (MAE, MAPE, NMAE, $R^{2}$) are the two standard metric families; trajectory-tracking evaluations additionally report command smoothness and inference time. Full definitions used here are given in Section~\ref{sec:metrics}. Three published results serve as scale markers for Section~\ref{sec:disc_benchmarks}: Giorelli et al.\ \cite{giorelli2015nn} reported $7.35$\,mm mean tip error ($2.62\%$ of a $280$\,mm cable-driven arm) for a feed-forward network; Ma et al.\ \cite{ma2022bp} reported pressure-space MAPE below $5\%$ for a BP network on a $216$-sample three-chamber pneumatic arm; Fang et al.\ \cite{fang2022jacobian} reported sub-millimetre closed-loop error for a Jacobian-learned iteration on a pneumatic arm with a digital-twin simulator. The three bracket the accuracy range cleanly-characterised soft-robot platforms have attained.
 
-\subsection{Pose error metrics}
-\label{sec:bg_metrics_pose}
-
-Two families of error metric are in common use for soft-robot inverse kinematics. The first measures \emph{position-space} error---the Euclidean distance between a target tip position and the position actually achieved once the predicted actuation has been applied. Published work typically reports the mean, the $95$th percentile, and the maximum of this distance over a test set, sometimes together with the root mean square. Because soft-robot platforms span arm lengths from about $100$\,mm to several metres, many authors also report the error normalised by arm length---for example the $7.35$\,mm mean tip error (corresponding to $2.62\%$ of a $280$\,mm arm) reported by Giorelli et al.\ \cite{giorelli2015nn}. Normalised reporting is standard practice when comparing across platforms and is the form used in the cross-platform table of Section~\ref{sec:disc_benchmarks}.
-
-The second family measures \emph{actuation-space} (or \emph{pressure-space}) error, the difference between predicted and ground-truth actuation commands on the same test frames. Mean absolute error (MAE) in the native actuation unit is the simplest form and is directly comparable across runs on the same dataset; mean absolute percentage error (MAPE) normalises by the ground-truth magnitude and is the metric reported by Ma et al.\ \cite{ma2022bp}. MAPE is sensitive to near-zero ground-truth commands, and most implementations apply a small-value threshold to avoid divide-by-near-zero inflation; the definition used in this thesis (Eq.~\eqref{eq:mape}) excludes samples with $|y| < 1\%$ of the maximum command. The coefficient of determination $R^{2}$ captures the fraction of ground-truth variance explained by the predictor and is widely used for regression tasks; a negative $R^{2}$ indicates a predictor worse than a constant regressor returning the per-output mean, which is the failure mode observed for the sim-only network of Section~\ref{sec:res_sim_transfer}.
-
-Comparing pressure-space metrics across platforms is more delicate than comparing position-space metrics, because pressure commands have different ranges, different physical units, and different zero-frames on different platforms. Where the actuation units are documented---as for Ma et al.'s three-chamber arm but not for Dataset~2 of this thesis---headline MAPE numbers are directly comparable between studies; where the units are undocumented, any cross-study comparison must be mediated by a position-space arbiter, typically a learned forward-kinematics network (Section~\ref{sec:res_jacobian}).
-
-\subsection{Trajectory-tracking metrics}
-\label{sec:bg_metrics_traj}
-
-A second class of evaluation considers how well an inverse-kinematics method drives the tip along a target trajectory rather than how well it predicts isolated targets. Trajectory-tracking metrics extend the position-space metrics to a sequence of targets and add two further dimensions specific to control-relevant evaluation. The first is smoothness of the predicted actuation command, commonly quantified either as the integral of squared jerk---the third time derivative of the command---or as the sum of squared discrete third differences that approximates it on a sampled sequence. Smoother commands reduce actuator wear, valve chatter, and power consumption. The second additional dimension is the per-step inference time, which determines the maximum control-loop rate at which a given method can be deployed.
-
-The specific trajectory shapes used vary by platform and application, but four recur across soft-robot papers: circles and figures-of-eight for planar bending, squares for corner handling, and helical spirals for probing the axial workspace. Chapter~\ref{chap:methods} adopts a four-trajectory protocol with these shapes (Section~\ref{sec:traj}), and Section~\ref{sec:metrics} defines the specific tracking, smoothness, and inference-time metrics used. The trajectory-tracking evaluation of Section~\ref{sec:res_traj} is the setting in which several methods that rank one way on per-sample metrics either converge or reverse their ranking, making it the single most informative comparison protocol in this thesis.
-
-\subsection{Published baselines}
-\label{sec:bg_metrics_baselines}
-
-Three published results serve as scale markers for the quantitative findings of this thesis and are introduced in detail in Section~\ref{sec:disc_benchmarks}. Giorelli et al.\ \cite{giorelli2015nn} reported a mean tip error of $7.35$\,mm ($2.62\%$ of arm length) for a feed-forward network and $15.12$\,mm ($5.40\%$) for an analytical Jacobian on a $280$\,mm cable-driven soft arm, establishing the benchmark for feed-forward-versus-analytical comparison on an unmodelled platform. Ma et al.\ \cite{ma2022bp} reported a pressure-space MAPE below $5\%$ for a back-propagation neural network trained on $216$ samples of a purpose-built three-chamber pneumatic arm, establishing the benchmark for learning-based inverse kinematics on pneumatic platforms with documented actuation units. Fang et al.\ \cite{fang2022jacobian} reported sub-millimetre closed-loop position error for a Jacobian-learned iteration on a pneumatic soft robot with a digital-twin simulator, establishing the benchmark for sim-to-real transfer via a learned forward map.
-
-None of the three uses exactly the same robot, dataset, or metric as this thesis, and the numerical comparisons in Section~\ref{sec:disc_benchmarks} are therefore indicative rather than definitive. Collected together they bracket the accuracy range that cleanly characterised soft-robot platforms have attained in the last decade---from the few-percent-of-arm-length accuracy that a small feed-forward network can reach on an undocumented platform, through the sub-$5\%$ pressure MAPE that a purpose-built platform with calibrated units can achieve, to the sub-millimetre closed-loop accuracy that a Jacobian-learned iteration with a digital twin can reach on a pneumatic arm. This thesis's quantitative findings are positioned against this range in Section~\ref{sec:disc_benchmarks}.
-
-\section{Critical synthesis and research gap}
+\section{Research gap}
 \label{sec:bg_gap}
 
-\paragraph{Summary of the literature.}
-Sections~\ref{sec:bg_motivation}--\ref{sec:bg_metrics} have surveyed the soft-robot inverse-kinematics literature along six axes: the motivation for soft-robot control (Section~\ref{sec:bg_motivation}), the structural reasons inverse kinematics is hard on pneumatic soft arms (Section~\ref{sec:bg_ik_difficulty}), the modelling hierarchy from PCC through Cosserat and finite-element methods (Section~\ref{sec:bg_models}), the four learning-based inverse-kinematics families (Section~\ref{sec:bg_ml_ik}), the sensing and observability assumptions that shape what any learning-based method can achieve (Section~\ref{sec:bg_sensing}), the simulation and sim-to-real infrastructure the community has developed (Section~\ref{sec:bg_sim}), and the pose- and trajectory-space metrics that make these results comparable (Section~\ref{sec:bg_metrics}).
+Three observations about the surveyed literature set up the gap the thesis addresses.
 
-\paragraph{Research gap.}
-Three observations about the surveyed literature set up the gap that this thesis addresses. First, each of the four inverse-kinematics method families has typically been evaluated in isolation rather than side by side on identical data. Analytical PCC, feed-forward neural regression, recurrent regression, and Jacobian-learned iteration have all been reported in the literature, but usually on different platforms, with different sensing assumptions and different evaluation metrics \cite{webster2010review, thuruthel2018survey, kim2021mlsoft, wang2021mlsurvey, giorelli2015nn, ma2022bp, thuruthel2019modelbased, tariverdi2021rnn, fang2022jacobian}. A reader who wants to choose a controller for a new pneumatic soft robot must still compare non-equivalent experiments across papers. Existing surveys classify the space well but do not solve the apples-to-apples comparison problem.
+\paragraph{Gap 1: method families are rarely compared head-to-head under matched protocols.}
+PCC, feed-forward, recurrent, and Jacobian-learned methods have been reported on different platforms, with different sensing assumptions and different evaluation metrics \cite{webster2010review, thuruthel2018survey, kim2021mlsoft, wang2021mlsurvey, giorelli2015nn, ma2022bp, thuruthel2019modelbased, tariverdi2021rnn, fang2022jacobian}. Practitioners choosing between them must assemble non-equivalent experiments across papers.
 
-Second, the value of partial-shape sensing is conceptually recognised but insufficiently isolated. The sensing literature makes it clear that internal-shape information matters \cite{sincak2024sensing, wang2024proprioception}, yet controlled ablations that change only the available observation while keeping the learning pipeline fixed remain rare. This leaves an important practical question under-answered: when does adding partial shape information improve inverse prediction more than adding model complexity?
+\paragraph{Gap 2: partial-shape sensing is recognised but insufficiently isolated.}
+The sensing literature makes clear that internal-shape information matters \cite{sincak2024sensing, wang2024proprioception}, yet controlled ablations that change only the observation while keeping the pipeline fixed are rare.
 
-Third, sim-to-real transfer under mismatched priors is less well understood than sim-to-real with a good digital twin. Positive sim-to-real results are often demonstrated when the simulator and the target robot are already reasonably aligned \cite{fang2022jacobian, gao2024residual, park2025dualae}. The more difficult but practically common case---borrowing a simulator prior from a related platform and applying it to an under-documented target robot---has been studied far less systematically. That gap matters directly for pneumatic soft robotics because many datasets and prototypes do not come with a faithful digital twin.
-
-\paragraph{Contributions of this thesis.}
-The contributions of this thesis address each part of the above gap in turn. First, Chapter~\ref{chap:results} reports a head-to-head comparison of analytical piecewise-constant-curvature inverse kinematics, feed-forward neural inverse kinematics, recurrent neural inverse kinematics, and Jacobian-learned inverse kinematics on two pneumatic datasets with complementary actuation redundancy: a two-module six-chamber I-Support recording and an undocumented three-valve recording, under identical evaluation protocols. Second, the feed-forward and recurrent methods are evaluated in both tip-only and tip-plus-mid configurations on the six-chamber recording, providing a paired statistical measurement of the value of partial-shape sensing that is not available from any single prior study. Third, a sim-to-real pipeline based on an I-Support-inspired PyElastica rod is evaluated on the undocumented three-valve platform at four real-data budgets, together with a decomposition of the reality gap into its geometric, constitutive, viscoelastic, and actuation-dynamics components (Section~\ref{sec:disc_sim}). Fourth, the combined empirical results are synthesised in Chapter~\ref{chap:discussion} into a three-property decision criterion---actuation redundancy, sensing coverage, and target-domain overlap---that offers a compact route through the method-selection space that the isolated studies above leave implicit.
+\paragraph{Gap 3: sim-to-real under mismatched priors is under-studied.}
+Positive transfer results tend to come from platforms aligned with the simulator \cite{fang2022jacobian, gao2024residual, park2025dualae}; the common case of borrowing a simulator from a related platform for an under-documented target has received less systematic attention.
 
 \paragraph{Thesis claim.}
-A concise claim emerging from the literature, and tested by the experiments of Chapter~\ref{chap:results}, is therefore that \emph{inverse-kinematics method choice for pneumatic soft robots is regime-dependent rather than universal, and the regime is determined primarily by actuation redundancy, sensing coverage, and simulator--target overlap}. The remaining chapters develop each element of that claim in turn.
+A concise claim emerging from the literature and tested in Chapter~\ref{chap:results} is that \emph{inverse-kinematics method choice for pneumatic soft robots is regime-dependent rather than universal, and the regime is set primarily by actuation redundancy, sensing coverage, and simulator--target overlap}. The contributions of Chapter~\ref{chap:introduction} are organised to validate each part of this claim in turn.
