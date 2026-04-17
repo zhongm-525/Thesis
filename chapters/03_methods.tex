@@ -70,13 +70,7 @@ Inputs and outputs were standardised to zero mean and unit variance. Scaler para
 \section{Exploratory Data Analysis (Exp 0)}
 \label{sec:eda}
 
-Each dataset was examined in a brief exploratory analysis before model training. Three questions motivated the analysis. The first was whether the raw data matched the expected format. The second concerned the preprocessing assumptions stated in Section~\ref{sec:splits}. The third, applied only to Dataset 1, quantified the physical noise floor attributable to the data-collection hardware.
-
-Dataset~1: per-recording base-position spatial standard deviation (base-stationarity); overlaid four-seed tip clouds (rotational drift); seed-0 repeatability from three trials, paired by nearest neighbour in pressure-command space and summarised as mean/median/95th percentile. Nearest-neighbour matching was used because the seed-0 command sequences differed slightly across trials.
-
-Dataset~2: missing-value and duplicate-row counts, per-column histograms for truncation or clipping, a shuffled-vs-ordered step-size ratio to test temporal structure, and per-valve/per-tip Pearson correlations as a sanity check on non-degeneracy.
-
-The numerical summaries and accompanying figures are presented in Chapter~\ref{chap:results}.
+Each dataset was checked for integrity (missing values, duplicates, range), preprocessing sanity (base stationarity and cross-seed overlap on Dataset~1; step-size ratio and valve--tip correlations on Dataset~2), and physical noise floor (seed-0 repeatability on Dataset~1, paired by nearest neighbour in pressure-command space). Full analysis protocols are listed in Appendix~\ref{app:eda_protocol}; findings are reported in Section~\ref{sec:eda_findings}.
 
 \section{Analytical Baseline: PCC Inverse Kinematics}
 

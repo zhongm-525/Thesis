@@ -62,6 +62,77 @@ Table~\ref{tab:app_hyperparams_solvers} collects the hyperparameters of the non-
   \end{tabularx}
 \end{table}
 
+\section{Exploratory data analysis: protocol}
+\label{app:eda_protocol}
+
+Each dataset was examined before model training to verify raw-data format, validate the preprocessing assumptions of Section~\ref{sec:splits}, and (for Dataset~1) estimate the physical noise floor.
+
+\paragraph{Dataset~1 checks.}
+(i) Per-recording spatial standard deviation of the base-marker mean position, as a base-stationarity check within each recording. (ii) Overlaid four-seed base-relative tip point clouds, as a check for rotational drift between recording sessions. (iii) Seed-0 repeatability from the three repeated trials: each tip sample in one trial was paired with its nearest neighbour in the other two trials in the six-dimensional pressure-command space, and the standard deviation of the three paired tip positions was recorded per frame. Nearest-neighbour matching was preferred over index alignment because the seed-0 command sequences differed slightly across trials; see Appendix~\ref{app:eda_detail}.
+
+\paragraph{Dataset~2 checks.}
+(i) Missing-value and duplicate-row counts. (ii) Per-column histograms for truncation, clipping, or quantisation artefacts. (iii) A shuffled-vs-ordered step-size ratio to test whether consecutive rows carry any temporal dependency: the mean Euclidean step between consecutive rows was compared against the analogous statistic under row permutation, in both tip-position space and valve-command space. (iv) Pearson correlations between each valve command and each tip coordinate as a non-degeneracy sanity check on the actuation--pose map.
+
+\section{Exploratory data analysis: findings in detail}
+\label{app:eda_detail}
+
+\paragraph{Dataset~1 occlusion.}
+All six recordings contain exactly $4{,}000$ raw frames ($24{,}000$ total). Marker drop-outs lost $64$ frames in aggregate ($0.27\%$), distributed unevenly across recordings (Table~\ref{tab:app_eda_ds1_occlusion}). The mid and tip triad occlusion masks were identical per recording, so the same $23{,}936$ frames remain usable for both the tip-only and the tip-plus-mid variants.
+
+\begin{table}[!htbp]
+  \centering
+  \small
+  \caption[Per-recording occlusion counts for Dataset~1.]{Per-recording occlusion counts for Dataset~1. Each recording contains $4{,}000$ raw frames; usable frames are those in which every marker in the mid and tip triads was visible.}
+  \label{tab:app_eda_ds1_occlusion}
+  \begin{tabularx}{\linewidth}{@{}l l X X X@{}}
+    \toprule
+    Seed & Trial & Raw frames & Usable frames & Occlusion \\
+    \midrule
+    1 & 1 & $4{,}000$ & $3{,}981$ & $0.48\%$ \\
+    2 & 1 & $4{,}000$ & $4{,}000$ & $0.00\%$ \\
+    3 & 1 & $4{,}000$ & $3{,}999$ & $0.03\%$ \\
+    0 & 1 & $4{,}000$ & $3{,}990$ & $0.25\%$ \\
+    0 & 2 & $4{,}000$ & $4{,}000$ & $0.00\%$ \\
+    0 & 3 & $4{,}000$ & $3{,}966$ & $0.85\%$ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\paragraph{Dataset~1 base stationarity.}
+Five of six recordings showed apparent base motion of up to $\sim$$32$\,mm in the per-frame base-mean spatial standard deviation; inspection of the raw marker stream showed this was an NaN-aware-mean artefact (when one or two of the three base markers were momentarily occluded, the mean collapsed onto the remaining marker's cluster-centroid offset). Once occluded frames were removed, the standard deviation fell below optical marker resolution, so the base is treated as fixed within every recording and the translation-only preprocessing of Section~\ref{sec:splits} is justified.
+
+\paragraph{Dataset~1 tip and mid magnitudes.}
+Mean base-relative tip magnitude $\approx 375$\,mm (max $\approx 405$\,mm, consistent with the $\sim$$410$\,mm assembled length); mean mid magnitude $\approx 198$\,mm, consistent with the mid-section sitting near the arm midpoint. Both fall within the $500$\,mm sanity threshold of the loader.
+
+\paragraph{Dataset~1 seed-0 repeatability distribution.}
+The paired per-frame tip standard deviation across the three seed-0 trials has mean $2.29$\,mm, median $1.88$\,mm, and $95$th percentile $4.14$\,mm, with a long tail to $60.3$\,mm driven by isolated frames near occlusion gaps (Fig~\ref{fig:app_ds1_repeatability}). The $\sim$$2.3$\,mm mean is cited as the Dataset~1 physical noise floor in Section~\ref{sec:eda_findings} and subsequent chapters.
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=0.75\linewidth]{fig/ds1_seed0_repeatability.pdf}
+  \caption[Seed-0 repeatability distribution for Dataset~1.]{Per-sample tip-position standard deviation across the three repetitions of the Dataset~1 seed-0 recording, with frames paired by nearest neighbour in the six-dimensional pressure-command space.}
+  \label{fig:app_ds1_repeatability}
+\end{figure}
+
+\paragraph{Dataset~1 seed-0 command non-identity.}
+Contrary to the expectation set by a shared RNG seed, the three seed-0 pressure-command sequences were not bit-identical: mean per-frame Euclidean distance between repetition 1 and 2 was $13.2$ raw units, between 1 and 3 was $45.2$ raw units (range $[0, 100]$). Index-aligned pairing would therefore compare slightly different commands, which is why the nearest-neighbour matching above was adopted.
+
+\paragraph{Dataset~2 integrity.}
+$18{,}072$ rows, no missing values, no duplicate rows. Valve commands integer-valued in $[0, 2500]$; every row inside this band. After inch-to-millimetre conversion the tip coordinates span $[-47.9, 53.8]$\,mm ($X$), $[-47.7, 56.1]$\,mm ($Y$), $[-27.5, 36.9]$\,mm ($Z$).
+
+\paragraph{Dataset~2 temporal structure (absent).}
+Mean Euclidean consecutive-row step in tip-position space $32.49$\,mm, versus $33.84$\,mm under row permutation (ratio $0.96$). The same statistic in three-dimensional valve-command space gives ratio $1.003$. Both ratios are indistinguishable from unity, so the rows of Dataset~2 behave as IID samples rather than as a trajectory. The default $70/15/15$ order-preserving split of Section~\ref{sec:splits} was retained as a precaution against subtle residual structure.
+
+\paragraph{Dataset~2 actuation--pose correlation.}
+Every valve--coordinate Pearson coefficient has magnitude above $0.09$ (Fig~\ref{fig:app_ds2_correlation}); the strongest entries are consistent with three chambers at $120^{\circ}$ (valve~1: $-Y, +Z$; valve~2: $+X$; valve~3: $-X$). The actuation--pose map is non-degenerate.
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=0.6\linewidth]{fig/ds2_correlation.pdf}
+  \caption[Actuation--pose correlation matrix for Dataset~2.]{Pearson correlation between each valve command and each tip coordinate across the $18{,}072$ rows of Dataset~2. The strongest per-row entries are consistent with a three-chamber radial actuator at $120^{\circ}$.}
+  \label{fig:app_ds2_correlation}
+\end{figure}
+
 \section{Supplementary figures}
 \label{app:extended_figures}
 
